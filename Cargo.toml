@@ -1,0 +1,9 @@
+[workspace]
+members = [
+	"prisma-cli",
+	"twitch",
+]
+default-members = [
+	"twitch",
+]
+resolver = "2"

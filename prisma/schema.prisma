@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "cargo prisma"
+  output   = "../twitch/src/prisma.rs"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CommentFragment {
+  index     Int
+  commentId String  @db.Uuid
+  comment   Comment @relation(fields: [commentId], references: [id])
+  text      String
+  emote     String?
+
+  @@id([index, commentId])
+}
+
+model Comment {
+  id        String            @id @db.Uuid
+  userId    BigInt            @db.BigInt
+  user      User              @relation(fields: [userId], references: [id])
+  videoId   BigInt            @db.BigInt
+  video     Video             @relation(fields: [videoId], references: [id])
+  fragments CommentFragment[]
+  createdAt DateTime
+}
+
+model Video {
+  id        BigInt    @id @db.BigInt
+  authorId  BigInt    @db.BigInt
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  createdAt DateTime
+}
+
+model User {
+  id        BigInt    @id @db.BigInt
+  username  String
+  comments  Comment[]
+  videos    Video[]
+  createdAt DateTime?
+}

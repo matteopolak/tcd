@@ -1,0 +1,26 @@
+[package]
+name = "twitch"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "twitch"
+path = "src/main.rs"
+
+[dependencies]
+serde = "1.0.147"
+tokio = "1.21.2"
+dotenv = "0.15.0"
+async-trait = "0.1.58"
+reqwest = { version = "0.11.12", features = ["json"] }
+chrono = "0.4.22"
+lazy_static = "1.4.0"
+serde_json = "1.0.87"
+futures = "0.3.25"
+async-stream = "0.3.3"
+
+[dependencies.prisma-client-rust]
+git = "https://github.com/Brendonovich/prisma-client-rust"
+tag = "0.6.3"
+default_features = false
+features = ["postgresql"]

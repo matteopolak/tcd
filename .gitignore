@@ -1,0 +1,4 @@
+target
+src/prisma.rs
+prisma/migrations
+.env
