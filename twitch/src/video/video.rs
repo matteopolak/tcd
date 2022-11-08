@@ -270,12 +270,12 @@ impl CommentIterator {
 
 					yield video;
 
-					payload["variables"]["cursor"] = json!(cursor);
-					next_chunk = self.get_chunk_with_payload(&payload).await;
-
 					if !has_next {
 						break;
 					}
+
+					payload["variables"]["cursor"] = json!(cursor);
+					next_chunk = self.get_chunk_with_payload(&payload).await;
 				} else {
 					break;
 				}
