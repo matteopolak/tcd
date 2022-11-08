@@ -16,6 +16,10 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt
+      - name: Generate Prisma client
+        uses: actions-rs/cargo@v1
+        with:
+          command: prisma generate
       - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
