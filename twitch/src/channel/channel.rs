@@ -5,8 +5,8 @@ use serde_json::json;
 
 use crate::prisma::PrismaClient;
 use crate::{
-	gql::gql::{GqlChannel, GqlResponse, GqlUser},
-	video::video::VideoIterator,
+	gql::{GqlChannel, GqlResponse, GqlUser},
+	video::VideoIterator,
 };
 
 pub struct Channel {

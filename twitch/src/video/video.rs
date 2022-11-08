@@ -8,7 +8,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
-	gql::gql::{GqlResponse, GqlTrackedUser, GqlVideoContent},
+	gql::{GqlResponse, GqlTrackedUser, GqlVideoContent},
 	prisma::{self, PrismaClient},
 };
 

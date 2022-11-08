@@ -9,7 +9,7 @@ use std::future::join;
 use dotenv::dotenv;
 use futures::StreamExt;
 
-use crate::channel::channel::{Channel, ChannelExt};
+use crate::channel::{Channel, ChannelExt};
 
 #[tokio::main]
 async fn main() {
@@ -24,8 +24,6 @@ async fn main() {
 	let mut video_batch = video_iter.batch();
 
 	while let Some(videos) = video_batch.next().await {
-		let start = std::time::Instant::now();
-
 		futures::stream::iter(videos.into_iter().map(|v| {
 			let download_comments_future = v.get_comments().download_all(&client);
 			let save_video_future = v.save(&client);
@@ -35,7 +33,5 @@ async fn main() {
 		.buffer_unordered(10)
 		.collect::<Vec<_>>()
 		.await;
-
-		println!("Took {:?}", start.elapsed().as_millis());
 	}
 }

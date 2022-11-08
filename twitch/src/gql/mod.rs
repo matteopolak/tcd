@@ -1,1 +1,3 @@
-pub mod gql;
+mod gql;
+
+pub use gql::*;
