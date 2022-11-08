@@ -29,7 +29,7 @@ pub struct GqlUserResponse {
 pub trait ChannelExt {
 	fn new(id: i64, username: String) -> Self;
 	fn get_videos(&self) -> VideoIterator;
-	async fn from_username(username: String) -> Result<Channel, reqwest::Error>;
+	async fn from_username(username: &str) -> Result<Channel, reqwest::Error>;
 	async fn save(&self, client: &PrismaClient) -> Result<(), QueryError>;
 }
 
@@ -54,7 +54,7 @@ impl ChannelExt for Channel {
 		Ok(())
 	}
 
-	async fn from_username(username: String) -> Result<Self, reqwest::Error> {
+	async fn from_username(username: &str) -> Result<Self, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let user = client
 			.post("https://gql.twitch.tv/gql")
