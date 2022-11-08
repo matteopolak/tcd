@@ -19,7 +19,7 @@ jobs:
       - name: Generate Prisma client
         uses: actions-rs/cargo@v1
         with:
-          command: prisma generate
+          command: run -p prisma-cli -- generate
       - name: Run cargo check
         uses: actions-rs/cargo@v1
         with:
