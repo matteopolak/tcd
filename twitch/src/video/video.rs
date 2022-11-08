@@ -68,7 +68,7 @@ impl Video {
 		CommentIterator::new(self.author_id, self.id, self.created_at)
 	}
 
-	async fn get_next_chunk(&self) -> Option<Vec<Self>> {
+	async fn get_next_chunk(&self) -> Option<(Vec<Self>, bool)> {
 		let cursor = match self.cursor {
 			Some(ref cursor) => cursor,
 			None => return None,
@@ -102,7 +102,7 @@ impl Video {
 		let videos: GqlResponse<GqlTrackedUserResponse> = videos.json().await.unwrap();
 
 		videos.data.user.videos.and_then(|videos| {
-			Some(
+			Some((
 				videos
 					.edges
 					.into_iter()
@@ -116,7 +116,8 @@ impl Video {
 						)
 					})
 					.collect(),
-			)
+				videos.page_info.has_next_page,
+			))
 		})
 	}
 }
@@ -340,8 +341,13 @@ impl VideoIterator {
 	pub fn batch(&mut self) -> Pin<Box<impl Stream<Item = Vec<Video>> + '_>> {
 		Box::pin(stream! {
 			let mut next_chunk = self.get_next_chunk().await.unwrap_or(vec![]);
+			let mut has_next = true;
 
 			loop {
+				if !has_next {
+					break;
+				}
+
 				let last = match next_chunk.last() {
 					Some(last) => last,
 					None => break,
@@ -354,7 +360,7 @@ impl VideoIterator {
 
 				yield next_chunk;
 
-				next_chunk = last_video.get_next_chunk().await.unwrap_or(vec![]);
+				(next_chunk, has_next) = last_video.get_next_chunk().await.unwrap_or((vec![], false));
 			};
 		})
 	}
