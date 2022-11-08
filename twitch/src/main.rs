@@ -40,7 +40,7 @@ async fn main() {
 
 		while let Some(videos) = video_batch.next().await {
 			futures::stream::iter(videos.into_iter().map(|v| {
-				let download_comments_future = v.get_comments().download_all(&client);
+				let download_comments_future = v.get_comments().download_all(&client, args.verbose);
 				let save_video_future = v.save(&client);
 
 				join!(save_video_future, download_comments_future)

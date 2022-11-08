@@ -74,8 +74,6 @@ impl Video {
 			None => return None,
 		};
 
-		println!("chunk");
-
 		let client = reqwest::Client::new();
 		let videos = client
 			.post("https://gql.twitch.tv/gql")
@@ -102,8 +100,6 @@ impl Video {
 			.unwrap();
 
 		let videos: GqlResponse<GqlTrackedUserResponse> = videos.json().await.unwrap();
-
-		println!("{:?}", videos);
 
 		videos.data.user.videos.and_then(|videos| {
 			Some((
@@ -141,7 +137,11 @@ impl CommentIterator {
 		}
 	}
 
-	pub async fn download_all(mut self, client: &PrismaClient) -> Result<(), QueryError> {
+	pub async fn download_all(
+		mut self,
+		client: &PrismaClient,
+		verbose: bool,
+	) -> Result<(), QueryError> {
 		let video_id = self.video_id;
 		let mut chunks = self.iter();
 
@@ -220,10 +220,12 @@ impl CommentIterator {
 				.await
 				.unwrap();
 
-			println!(
-				"[{}] Added {} users, {} comments, {} fragments",
-				video_id, users_len, comments_len, fragments_len
-			);
+			if verbose {
+				println!(
+					"[{}] Added {} users, {} comments, {} fragments",
+					video_id, users_len, comments_len, fragments_len
+				);
+			}
 		}
 
 		Ok(())
