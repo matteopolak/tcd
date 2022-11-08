@@ -59,7 +59,7 @@ impl Video {
 			)
 			.exec()
 			.await
-			.unwrap();
+			.ok();
 
 		Ok(())
 	}
