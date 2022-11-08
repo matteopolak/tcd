@@ -261,10 +261,16 @@ impl CommentIterator {
 						None => break,
 					};
 
+					let has_next = video.comments.page_info.has_next_page;
+
 					yield video;
 
 					payload["variables"]["cursor"] = json!(cursor);
 					next_chunk = self.get_chunk_with_payload(&payload).await;
+
+					if !has_next {
+						break;
+					}
 				} else {
 					break;
 				}
