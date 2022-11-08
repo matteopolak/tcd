@@ -6,6 +6,12 @@
 
 [tcd](https://github.com/matteopolak/tcd) is a multi-threaded **T**witch **C**hat **D**ownloader built in Rust 🦀.
 
+## Setup
+
+You will need a [PostgreSQL](https://www.postgresql.org/download "You can download it from here") database to store chat messages.
+
+Rename `.env.example` to `.env` and replace the placeholder values with your own.
+
 ## Usage
 
 ```cli
