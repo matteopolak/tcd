@@ -74,6 +74,8 @@ impl Video {
 			None => return None,
 		};
 
+		println!("chunk");
+
 		let client = reqwest::Client::new();
 		let videos = client
 			.post("https://gql.twitch.tv/gql")
@@ -100,6 +102,8 @@ impl Video {
 			.unwrap();
 
 		let videos: GqlResponse<GqlTrackedUserResponse> = videos.json().await.unwrap();
+
+		println!("{:?}", videos);
 
 		videos.data.user.videos.and_then(|videos| {
 			Some((
@@ -344,21 +348,20 @@ impl VideoIterator {
 			let mut has_next = true;
 
 			loop {
-				if !has_next {
-					break;
-				}
-
 				let last = match next_chunk.last() {
 					Some(last) => last,
 					None => break,
 				};
-
 
 				let cursor = last.cursor.clone();
 				let id = last.id.clone();
 				let last_video = Video::new(id, self.author.clone(), self.author_id, cursor, last.created_at);
 
 				yield next_chunk;
+
+				if !has_next {
+					break;
+				}
 
 				(next_chunk, has_next) = last_video.get_next_chunk().await.unwrap_or((vec![], false));
 			};
