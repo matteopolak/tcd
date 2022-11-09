@@ -263,8 +263,8 @@ impl CommentIterator {
 						None => break,
 					};
 
-					let cursor = match last.cursor.clone() {
-						Some(cursor) => cursor,
+					let cursor = match last.cursor.as_ref() {
+						Some(cursor) => cursor.clone(),
 						None => break,
 					};
 
