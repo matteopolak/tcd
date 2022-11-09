@@ -24,4 +24,8 @@ pub struct Args {
 	/// Whether to print download progress
 	#[clap(short = 'q', long, default_value_t = false)]
 	pub quiet: bool,
+
+	/// Downloads the first n videos from each channel
+	#[clap(short = 'l', long)]
+	pub limit: Option<usize>,
 }

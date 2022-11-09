@@ -17,6 +17,17 @@ async fn main() {
 	dotenv().unwrap();
 
 	let args = Args::parse();
+	let limit = match args.limit {
+		Some(limit) => {
+			if limit == 0 {
+				return;
+			}
+
+			limit
+		}
+		None => 0,
+	};
+
 	let client = match prisma::new_client().await {
 		Ok(client) => client,
 		Err(err) => panic!("Failed to connect to database: {}", err),
@@ -70,10 +81,19 @@ async fn main() {
 			Err(e) => panic!("Failed to fetch latest video for {}: {}", channel_name, e),
 		};
 
-		let mut videos = channel.paginate(&http);
 		let mut stop = false;
+		let mut taken = 0;
+		let mut videos = channel.paginate(&http);
 
 		while let Some(container) = videos.next().await {
+			if limit != 0 {
+				taken += 1;
+
+				if taken > limit {
+					break;
+				}
+			}
+
 			let container = match container {
 				Ok(container) => container,
 				Err(e) => {
