@@ -17,16 +17,6 @@ async fn main() {
 	dotenv().unwrap();
 
 	let args = Args::parse();
-	let limit = match args.limit {
-		Some(limit) => {
-			if limit == 0 {
-				return;
-			}
-
-			limit
-		}
-		None => 0,
-	};
 
 	let client = match prisma::new_client().await {
 		Ok(client) => client,
@@ -82,18 +72,10 @@ async fn main() {
 		};
 
 		let mut stop = false;
-		let mut taken = 0;
 		let mut videos = channel.paginate(&http);
+		let mut limit = args.limit.unwrap_or(0);
 
 		while let Some(container) = videos.next().await {
-			if limit != 0 {
-				taken += 1;
-
-				if taken > limit {
-					break;
-				}
-			}
-
 			let container = match container {
 				Ok(container) => container,
 				Err(e) => {
@@ -102,12 +84,23 @@ async fn main() {
 				}
 			};
 
-			let videos = container.edges;
+			let mut videos = container.edges;
 
 			// If they were all created before the newest stored video, stop
 			// after re-checking them all (just in case the download was stopped)
 			if videos.iter().all(|v| v.node.created_at < start_at) {
 				stop = true;
+			}
+
+			// If the remaining videos to download is greater than 0,
+			// update the counter and stop if it reaches 0
+			if limit > 0 {
+				if videos.len() > limit {
+					videos.truncate(limit);
+					stop = true;
+				}
+
+				limit -= videos.len();
 			}
 
 			futures::stream::iter(videos.into_iter().map(|v| Video::from(v)).map(|v| async {
