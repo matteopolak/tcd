@@ -1,3 +1,3 @@
-mod gql;
-
-pub use gql::*;
+pub mod prelude;
+pub mod request;
+pub mod structs;

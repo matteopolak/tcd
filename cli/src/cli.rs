@@ -1,8 +1,7 @@
 use clap::Parser;
 
-/// Twitch Chat Downloader
 #[derive(Parser)]
-#[clap(author = "Matthew Polak")]
+#[clap(author = clap::crate_authors!(), version = clap::crate_version!(), about = clap::crate_description!())]
 pub struct Args {
 	/// The channel to download. Specify multiple times to download multiple channels.
 	#[clap(short = 'c', long, required = true)]
@@ -13,6 +12,6 @@ pub struct Args {
 	pub threads: usize,
 
 	/// Whether to print download progress
-	#[clap(short = 'v', long, default_value_t = true)]
-	pub verbose: bool,
+	#[clap(short = 'q', long, default_value_t = false)]
+	pub quiet: bool,
 }

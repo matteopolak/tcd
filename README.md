@@ -15,7 +15,7 @@ Rename `.env.example` to `.env` and replace the placeholder values with your own
 ## Usage
 
 ```cli
-tcd --channel <CHANNEL>
+tcd --channel <CHANNEL> [--quiet]
 ```
 
 For example:

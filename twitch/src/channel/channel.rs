@@ -1,12 +1,23 @@
+use std::pin::Pin;
+
+use async_stream::try_stream;
 use async_trait::async_trait;
+use futures::Stream;
 use prisma_client_rust::QueryError;
-use serde::Deserialize;
 use serde_json::json;
 
-use crate::prisma::PrismaClient;
 use crate::{
-	gql::{GqlChannel, GqlResponse, GqlUser},
-	video::VideoIterator,
+	gql::{
+		prelude::{Chunk, ChunkError, Paginate, Save},
+		request::{
+			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery, GqlVideoFilterVariables,
+		},
+		structs::{
+			GqlChannelResponse, GqlEdgeContainer, GqlResponse, GqlTrackedUserResponse,
+			GqlUserResponse, GqlVideo,
+		},
+	},
+	prisma::PrismaClient,
 };
 
 pub struct Channel {
@@ -14,47 +25,126 @@ pub struct Channel {
 	pub username: String,
 }
 
-#[derive(Deserialize)]
-pub struct GqlChannelResponse {
-	pub user: GqlChannel,
-}
-
-#[derive(Deserialize)]
-pub struct GqlUserResponse {
-	#[serde(rename(deserialize = "targetUser"))]
-	pub user: GqlUser,
-}
-
 #[async_trait]
-pub trait ChannelExt {
-	fn new(id: i64, username: String) -> Self;
-	fn get_videos(&self) -> VideoIterator;
-	async fn from_username(username: &str) -> Result<Channel, reqwest::Error>;
-	async fn save(&self, client: &PrismaClient) -> Result<(), QueryError>;
-}
-
-#[async_trait]
-impl ChannelExt for Channel {
-	fn new(id: i64, username: String) -> Self {
-		Self { id, username }
-	}
-
-	fn get_videos(&self) -> VideoIterator {
-		VideoIterator::new(self.username.clone(), self.id)
-	}
-
+impl Save for Channel {
 	async fn save(&self, client: &PrismaClient) -> Result<(), QueryError> {
 		client
 			.user()
 			.create(self.id, self.username.clone(), vec![])
 			.exec()
-			.await
-			.ok();
+			.await?;
 
 		Ok(())
 	}
+}
 
-	async fn from_username(username: &str) -> Result<Self, reqwest::Error> {
+#[async_trait]
+impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
+	async fn chunk_by_cursor(
+		&self,
+		http: &reqwest::Client,
+		cursor: &str,
+	) -> Result<GqlEdgeContainer<GqlVideo>, ChunkError> {
+		let response = http
+			.post("https://gql.twitch.tv/gql")
+			.json(&GqlRequest {
+				operation_name: "FilterableVideoTower_Videos",
+				variables: GqlVideoFilterVariables {
+					limit: 30,
+					username: &self.username,
+					r#type: "ARCHIVE",
+					sort: "TIME",
+					cursor: Some(cursor),
+				},
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"a937f1d22e269e39a03b509f65a7490f9fc247d7f83d6ac1421523e3b68042cb",
+					},
+				},
+			})
+			.send()
+			.await
+			.map_err(|e| ChunkError::Reqwest(e))?;
+
+		let body: GqlResponse<GqlTrackedUserResponse> =
+			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+
+		body.data
+			.user
+			.videos
+			.map_or(Err(ChunkError::DataMissing), |v| Ok(v))
+	}
+
+	async fn first_chunk(
+		&self,
+		http: &reqwest::Client,
+	) -> Result<GqlEdgeContainer<GqlVideo>, ChunkError> {
+		let response = http
+			.post("https://gql.twitch.tv/gql")
+			.json(&GqlRequest {
+				operation_name: "FilterableVideoTower_Videos",
+				variables: GqlVideoFilterVariables {
+					limit: 30,
+					username: &self.username,
+					r#type: "ARCHIVE",
+					sort: "TIME",
+					cursor: None,
+				},
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"a937f1d22e269e39a03b509f65a7490f9fc247d7f83d6ac1421523e3b68042cb",
+					},
+				},
+			})
+			.send()
+			.await
+			.map_err(|e| ChunkError::Reqwest(e))?;
+
+		let body: GqlResponse<GqlTrackedUserResponse> =
+			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+
+		body.data
+			.user
+			.videos
+			.map_or(Err(ChunkError::DataMissing), |v| Ok(v))
+	}
+}
+
+impl Paginate<GqlVideo> for Channel {
+	fn paginate<'a>(
+		&'a self,
+		http: &'a reqwest::Client,
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlVideo>, ChunkError>> + '_>> {
+		Box::pin(try_stream! {
+			let mut cursor: Option<String> = None;
+
+			loop {
+				let data = match cursor {
+					Some(ref cursor) => self.chunk_by_cursor(http, cursor).await?,
+					None => self.first_chunk(http).await?,
+				};
+
+				cursor = match data.edges.last() {
+					Some(edge) => edge.cursor.clone(),
+					None => None,
+				};
+
+				yield data;
+
+				if cursor.is_none() {
+					break;
+				}
+			}
+		})
+	}
+}
+
+impl Channel {
+	pub async fn from_username(username: &str) -> Result<Self, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let user = client
 			.post("https://gql.twitch.tv/gql")

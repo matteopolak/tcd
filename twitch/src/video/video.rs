@@ -1,14 +1,22 @@
 use std::{collections::HashMap, pin::Pin};
 
-use async_stream::stream;
+use async_stream::try_stream;
+use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
-use futures::{Stream, StreamExt};
+use futures::{join, Stream, StreamExt};
 use prisma_client_rust::QueryError;
-use serde::Deserialize;
-use serde_json::json;
 
 use crate::{
-	gql::{GqlResponse, GqlTrackedUser, GqlVideoContent},
+	gql::{
+		prelude::{Chunk, ChunkError, Paginate, Save, SaveChunk},
+		request::{
+			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
+			GqlVideoCommentsByCursorVariables, GqlVideoCommentsByOffsetVariables,
+		},
+		structs::{
+			GqlComment, GqlEdge, GqlEdgeContainer, GqlResponse, GqlVideo, GqlVideoContentResponse,
+		},
+	},
 	prisma::{self, PrismaClient},
 };
 
@@ -21,34 +29,9 @@ pub struct Video {
 	pub created_at: DateTime<FixedOffset>,
 }
 
-#[derive(Deserialize, Debug)]
-pub struct GqlTrackedUserResponse {
-	pub user: GqlTrackedUser,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GqlVideoContentResponse {
-	pub video: Option<GqlVideoContent>,
-}
-
-impl Video {
-	pub fn new(
-		id: i64,
-		author: String,
-		author_id: i64,
-		cursor: Option<String>,
-		created_at: DateTime<FixedOffset>,
-	) -> Self {
-		Self {
-			id,
-			author,
-			author_id,
-			cursor,
-			created_at,
-		}
-	}
-
-	pub async fn save(self, client: &PrismaClient) -> Result<(), QueryError> {
+#[async_trait]
+impl Save for Video {
+	async fn save(&self, client: &PrismaClient) -> Result<(), QueryError> {
 		client
 			.video()
 			.create(
@@ -58,94 +41,137 @@ impl Video {
 				vec![],
 			)
 			.exec()
-			.await
-			.ok();
+			.await?;
 
 		Ok(())
 	}
+}
 
-	pub fn get_comments(&self) -> CommentIterator {
-		CommentIterator::new(self.author_id, self.id, self.created_at)
+impl From<GqlEdge<GqlVideo>> for Video {
+	fn from(video: GqlEdge<GqlVideo>) -> Self {
+		Self {
+			id: video.node.id,
+			author: video.node.user.username,
+			author_id: video.node.user.id,
+			cursor: video.cursor,
+			created_at: video.node.created_at,
+		}
 	}
+}
 
-	async fn get_next_chunk(&self) -> Option<(Vec<Self>, bool)> {
-		let cursor = match self.cursor {
-			Some(ref cursor) => cursor,
-			None => return None,
-		};
-
-		let client = reqwest::Client::new();
-		let videos = client
+#[async_trait]
+impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
+	async fn chunk_by_cursor(
+		&self,
+		http: &reqwest::Client,
+		cursor: &str,
+	) -> Result<GqlEdgeContainer<GqlComment>, ChunkError> {
+		let response = http
 			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&json!({
-				"operationName": "FilterableVideoTower_Videos",
-				"variables": {
-					"limit": 30,
-					"channelOwnerLogin": self.author,
-					"broadcastType": "ARCHIVE",
-					"videoSort": "TIME",
-					"cursor": cursor,
+			.json(&GqlRequest {
+				operation_name: "VideoCommentsByOffsetOrCursor",
+				variables: GqlVideoCommentsByCursorVariables {
+					video_id: self.id,
+					cursor: cursor,
 				},
-				"extensions": {
-					"persistedQuery": {
-						"version": 1,
-						"sha256Hash":
-							"a937f1d22e269e39a03b509f65a7490f9fc247d7f83d6ac1421523e3b68042cb",
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a",
 					},
 				},
-			}))
+			})
 			.send()
 			.await
-			.unwrap();
+			.map_err(|e| ChunkError::Reqwest(e))?;
 
-		let videos: GqlResponse<GqlTrackedUserResponse> = videos.json().await.unwrap();
+		let body: GqlResponse<GqlVideoContentResponse> =
+			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
 
-		videos.data.user.videos.and_then(|videos| {
-			Some((
-				videos
-					.edges
-					.into_iter()
-					.map(|edge| {
-						Self::new(
-							edge.node.id,
-							self.author.clone(),
-							self.author_id,
-							edge.cursor,
-							edge.node.created_at,
-						)
-					})
-					.collect(),
-				videos.page_info.has_next_page,
-			))
+		if let Some(video) = body.data.video {
+			Ok(video.comments)
+		} else {
+			Err(ChunkError::DataMissing)
+		}
+	}
+
+	async fn first_chunk(
+		&self,
+		http: &reqwest::Client,
+	) -> Result<GqlEdgeContainer<GqlComment>, ChunkError> {
+		let response = http
+			.post("https://gql.twitch.tv/gql")
+			.json(&GqlRequest {
+				operation_name: "VideoCommentsByOffsetOrCursor",
+				variables: GqlVideoCommentsByOffsetVariables {
+					video_id: self.id,
+					offset: 0,
+				},
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a",
+					},
+				},
+			})
+			.send()
+			.await
+			.map_err(|e| ChunkError::Reqwest(e))?;
+
+		let body: GqlResponse<GqlVideoContentResponse> =
+			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+
+		if let Some(video) = body.data.video {
+			Ok(video.comments)
+		} else {
+			Err(ChunkError::DataMissing)
+		}
+	}
+}
+
+impl Paginate<GqlComment> for Video {
+	fn paginate<'a>(
+		&'a self,
+		http: &'a reqwest::Client,
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlComment>, ChunkError>> + '_>> {
+		Box::pin(try_stream! {
+			let mut cursor: Option<String> = None;
+
+			loop {
+				let data = match cursor {
+					Some(ref cursor) => self.chunk_by_cursor(http, cursor).await?,
+					None => self.first_chunk(http).await?,
+				};
+
+				cursor = match data.edges.last() {
+					Some(edge) => edge.cursor.clone(),
+					None => None,
+				};
+
+				yield data;
+
+				if cursor.is_none() {
+					break;
+				}
+			}
 		})
 	}
 }
 
-pub struct CommentIterator {
-	pub author_id: i64,
-	pub video_id: i64,
-	pub created_at: DateTime<FixedOffset>,
-}
-
-impl CommentIterator {
-	pub fn new(author_id: i64, video_id: i64, created_at: DateTime<FixedOffset>) -> Self {
-		Self {
-			author_id,
-			video_id,
-			created_at,
-		}
-	}
-
-	pub async fn download_all(
-		mut self,
+#[async_trait(?Send)]
+impl SaveChunk<GqlComment> for Video {
+	async fn save_chunks(
+		self,
 		client: &PrismaClient,
+		http: &reqwest::Client,
 		verbose: bool,
-	) -> Result<(), QueryError> {
-		let video_id = self.video_id;
-		let mut chunks = self.iter();
+	) -> Result<(), ChunkError> {
+		let mut stream = self.paginate(http);
+		let video_id = self.id;
 
-		while let Some(chunk) = chunks.next().await {
+		while let Some(Ok(chunk)) = stream.next().await {
 			let mut comments: Vec<(
 				String,
 				i64,
@@ -158,7 +184,7 @@ impl CommentIterator {
 			let mut users: HashMap<i64, (i64, String, Vec<prisma::user::SetParam>)> =
 				HashMap::new();
 
-			for comment in chunk.comments.edges {
+			for comment in chunk.edges {
 				let commenter = match comment.node.commenter {
 					Some(commenter) => commenter,
 					None => continue,
@@ -192,231 +218,34 @@ impl CommentIterator {
 				));
 			}
 
-			let users_len = users.len();
-			let comments_len = comments.len();
-			let fragments_len = fragments.len();
-
-			client
-				.user()
-				.create_many(users.into_values().into_iter().collect())
-				.skip_duplicates()
-				.exec()
-				.await
-				.unwrap();
-
-			client
-				.comment()
-				.create_many(comments)
-				.skip_duplicates()
-				.exec()
-				.await
-				.unwrap();
-
-			client
-				.comment_fragment()
-				.create_many(fragments)
-				.skip_duplicates()
-				.exec()
-				.await
-				.unwrap();
+			let (users, comments, fragments) = join!(
+				client
+					.user()
+					.create_many(users.into_values().into_iter().collect())
+					.skip_duplicates()
+					.exec(),
+				client
+					.comment()
+					.create_many(comments)
+					.skip_duplicates()
+					.exec(),
+				client
+					.comment_fragment()
+					.create_many(fragments)
+					.skip_duplicates()
+					.exec()
+			);
 
 			if verbose {
 				println!(
-					"[{}] Added {} users, {} comments, {} fragments",
-					video_id, users_len, comments_len, fragments_len
+					"Saved {} users, {} comments, and {} fragments",
+					users.map_err(|e| ChunkError::Prisma(e))?,
+					comments.map_err(|e| ChunkError::Prisma(e))?,
+					fragments.map_err(|e| ChunkError::Prisma(e))?
 				);
 			}
 		}
 
 		Ok(())
-	}
-
-	pub fn iter(&mut self) -> Pin<Box<impl Stream<Item = GqlVideoContent> + '_>> {
-		Box::pin(stream! {
-			let mut next_chunk = self.get_next_chunk().await;
-			let mut payload = json!(
-				{
-					"operationName": "VideoCommentsByOffsetOrCursor",
-					"variables": {
-						"videoID": self.video_id.to_string(),
-						"cursor": "",
-					},
-					"extensions": {
-						"persistedQuery": {
-							"version": 1,
-							"sha256Hash":
-								"b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a",
-						},
-					},
-				}
-			);
-
-			loop {
-				if let Some(chunk) = next_chunk {
-					let video = match chunk.video {
-						Some(video) => video,
-						None => break,
-					};
-
-					let last = match video.comments.edges.last() {
-						Some(last) => last,
-						None => break,
-					};
-
-					let cursor = match last.cursor.as_ref() {
-						Some(cursor) => cursor.clone(),
-						None => break,
-					};
-
-					let has_next = video.comments.page_info.has_next_page;
-
-					yield video;
-
-					if !has_next {
-						break;
-					}
-
-					payload["variables"]["cursor"] = json!(cursor);
-					next_chunk = self.get_chunk_with_payload(&payload).await;
-				} else {
-					break;
-				}
-			};
-		})
-	}
-
-	pub async fn get_chunk_with_payload(
-		&self,
-		payload: &serde_json::Value,
-	) -> Option<GqlVideoContentResponse> {
-		let client = reqwest::Client::new();
-		let comments = client
-			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&payload)
-			.send()
-			.await
-			.ok()?;
-
-		let comments: GqlResponse<GqlVideoContentResponse> = comments.json().await.ok()?;
-
-		Some(comments.data)
-	}
-
-	pub async fn get_next_chunk(&self) -> Option<GqlVideoContentResponse> {
-		let client = reqwest::Client::new();
-		let comments = client
-			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&json!(
-				{
-					"operationName": "VideoCommentsByOffsetOrCursor",
-					"variables": {
-						"videoID": self.video_id.to_string(),
-						"contentOffsetSeconds": 0,
-					},
-					"extensions": {
-						"persistedQuery": {
-							"version": 1,
-							"sha256Hash":
-								"b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a",
-						},
-					},
-				}
-			))
-			.send()
-			.await
-			.ok()?;
-
-		let content: GqlResponse<GqlVideoContentResponse> = comments.json().await.ok()?;
-
-		Some(content.data)
-	}
-}
-
-pub struct VideoIterator {
-	pub author: String,
-	pub author_id: i64,
-}
-
-impl VideoIterator {
-	pub fn new(author: String, author_id: i64) -> Self {
-		Self { author, author_id }
-	}
-
-	pub fn batch(&mut self) -> Pin<Box<impl Stream<Item = Vec<Video>> + '_>> {
-		Box::pin(stream! {
-			let mut next_chunk = self.get_next_chunk().await.unwrap_or(vec![]);
-			let mut has_next = true;
-
-			loop {
-				let last = match next_chunk.last() {
-					Some(last) => last,
-					None => break,
-				};
-
-				let cursor = last.cursor.clone();
-				let id = last.id.clone();
-				let last_video = Video::new(id, self.author.clone(), self.author_id, cursor, last.created_at);
-
-				yield next_chunk;
-
-				if !has_next {
-					break;
-				}
-
-				(next_chunk, has_next) = last_video.get_next_chunk().await.unwrap_or((vec![], false));
-			};
-		})
-	}
-
-	pub async fn get_next_chunk(&self) -> Option<Vec<Video>> {
-		let client = reqwest::Client::new();
-		let videos = client
-			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&json!({
-				"operationName": "FilterableVideoTower_Videos",
-				"variables": {
-					"limit": 30,
-					"channelOwnerLogin": self.author,
-					"broadcastType": "ARCHIVE",
-					"videoSort": "TIME",
-				},
-				"extensions": {
-					"persistedQuery": {
-						"version": 1,
-						"sha256Hash":
-							"a937f1d22e269e39a03b509f65a7490f9fc247d7f83d6ac1421523e3b68042cb",
-					},
-				},
-			}))
-			.send()
-			.await
-			.ok()?;
-
-		let videos: GqlResponse<GqlTrackedUserResponse> = videos.json().await.ok()?;
-
-		videos.data.user.videos.and_then(|videos| {
-			let videos = videos
-				.edges
-				.into_iter()
-				.map(|edge| {
-					Video::new(
-						edge.node.id,
-						self.author.clone(),
-						self.author_id,
-						edge.cursor,
-						edge.node.created_at,
-					)
-				})
-				.collect::<Vec<Video>>();
-
-			if videos.len() > 0 {
-				Some(videos)
-			} else {
-				None
-			}
-		})
 	}
 }

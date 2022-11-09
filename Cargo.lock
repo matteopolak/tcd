@@ -296,19 +296,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cli"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "dotenv",
- "futures",
- "prisma-client-rust",
- "tokio",
- "twitch",
-]
-
-[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2843,6 +2830,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "tcd"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "dotenv",
+ "futures",
+ "prisma-client-rust",
+ "reqwest",
+ "tokio",
+ "twitch",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3119,12 +3120,13 @@ checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
 
 [[package]]
 name = "twitch"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-stream",
  "async-trait",
  "chrono",
  "futures",
+ "futures-util",
  "prisma-client-rust",
  "reqwest",
  "serde",

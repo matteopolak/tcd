@@ -1,29 +1,30 @@
+use super::prelude::string;
 use chrono::{DateTime, FixedOffset, Utc};
 use serde::Deserialize;
-
-// https://github.com/serde-rs/json/issues/329
-mod string {
-	use std::fmt::Display;
-	use std::str::FromStr;
-
-	use serde::{de, Deserialize, Deserializer};
-
-	pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-	where
-		T: FromStr,
-		T::Err: Display,
-		D: Deserializer<'de>,
-	{
-		String::deserialize(deserializer)?
-			.parse()
-			.map_err(de::Error::custom)
-	}
-}
 
 #[derive(Deserialize, Debug)]
 pub struct GqlResponse<T> {
 	pub data: T,
 	pub extensions: GqlExtensions,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlPageInfo {
+	#[serde(rename(deserialize = "hasNextPage"))]
+	pub has_next_page: bool,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlEdge<T> {
+	pub cursor: Option<String>,
+	pub node: T,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlEdgeContainer<T> {
+	pub edges: Vec<GqlEdge<T>>,
+	#[serde(rename(deserialize = "pageInfo"))]
+	pub page_info: GqlPageInfo,
 }
 
 #[derive(Deserialize, Debug)]
@@ -62,25 +63,6 @@ pub struct GqlUser {
 	pub display_name: String,
 	#[serde(rename(deserialize = "createdAt"))]
 	pub created_at: DateTime<Utc>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GqlPageInfo {
-	#[serde(rename(deserialize = "hasNextPage"))]
-	pub has_next_page: bool,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GqlEdge<T> {
-	pub cursor: Option<String>,
-	pub node: T,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GqlEdgeContainer<T> {
-	pub edges: Vec<GqlEdge<T>>,
-	#[serde(rename(deserialize = "pageInfo"))]
-	pub page_info: GqlPageInfo,
 }
 
 #[derive(Deserialize, Debug)]
@@ -135,4 +117,25 @@ pub struct GqlTrackedUser {
 	#[serde(with = "string")]
 	pub id: i64,
 	pub videos: Option<GqlEdgeContainer<GqlVideo>>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlChannelResponse {
+	pub user: GqlChannel,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlUserResponse {
+	#[serde(rename(deserialize = "targetUser"))]
+	pub user: GqlUser,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlTrackedUserResponse {
+	pub user: GqlTrackedUser,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GqlVideoContentResponse {
+	pub video: Option<GqlVideoContent>,
 }
