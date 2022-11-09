@@ -2,8 +2,8 @@
 name = "tcd"
 version = "0.2.0"
 edition = "2021"
-description = "A Twitch chat archiving and downloading tool"
 authors = ["Matthew Polak <contact@matteopolak.com>"]
+description = "A Twitch chat archiving and downloading tool"
 
 [[bin]]
 name = "tcd"
@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4.22"
-clap = { version = "4.0.22", features = ["derive", "cargo"] }
+clap = { version = "4.0.22", features = ["derive"] }
 dotenv = "0.15.0"
 futures = "0.3.25"
 tokio = "1.21.2"

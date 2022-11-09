@@ -1,7 +1,17 @@
 use clap::Parser;
 
 #[derive(Parser)]
-#[clap(author = clap::crate_authors!(), version = clap::crate_version!(), about = clap::crate_description!())]
+#[clap(
+	author,
+	version,
+	about,
+	help_template = "
+{author-with-newline}{about-with-newline}
+{usage-heading} {usage}
+
+{all-args}{after-help}
+"
+)]
 pub struct Args {
 	/// The channel to download. Specify multiple times to download multiple channels.
 	#[clap(short = 'c', long, required = true)]
