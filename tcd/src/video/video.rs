@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// A video on Twitch
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Video {
 	pub id: i64,
 	pub author: String,

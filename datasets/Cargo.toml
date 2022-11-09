@@ -8,7 +8,7 @@ authors = ["Matthew Polak <contact@matteopolak.com>"]
 dotenv = "0.15.0"
 serde = "1.0.147"
 tokio = "1.21.2"
-twitch = { path = "../twitch" }
+tcd = { path = "../tcd" }
 csv = "1.1.6"
 
 [dependencies.prisma-client-rust]

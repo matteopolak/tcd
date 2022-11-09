@@ -121,7 +121,7 @@ pub struct GqlTrackedUser {
 
 #[derive(Deserialize, Debug)]
 pub struct GqlChannelResponse {
-	pub user: GqlChannel,
+	pub user: Option<GqlChannel>,
 }
 
 #[derive(Deserialize, Debug)]

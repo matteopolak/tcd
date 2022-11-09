@@ -1,9 +1,9 @@
 [workspace]
 members = [
+	"cli",
 	"datasets",
 	"prisma-cli",
-	"twitch",
-	"cli",
+	"tcd",
 ]
 default-members = [
 	"cli",

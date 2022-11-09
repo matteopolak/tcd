@@ -59,6 +59,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eab1c04a571841102f5345a8fc0f6bb3d31c315dec879b5c6e42e40ce7ffa34e"
 
 [[package]]
+name = "assert_matches"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b34d609dfbaf33d6889b2b7106d3ca345eacad44200913df5ba02bfd31d2ba9"
+
+[[package]]
 name = "async-stream"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -561,8 +567,8 @@ dependencies = [
  "dotenv",
  "prisma-client-rust",
  "serde",
+ "tcd",
  "tokio",
- "twitch",
 ]
 
 [[package]]
@@ -2833,14 +2839,31 @@ dependencies = [
 name = "tcd"
 version = "0.2.0"
 dependencies = [
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "futures",
+ "futures-util",
+ "prisma-client-rust",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "tcd-cli"
+version = "0.2.0"
+dependencies = [
+ "assert_matches",
  "chrono",
  "clap",
  "dotenv",
  "futures",
  "prisma-client-rust",
  "reqwest",
+ "tcd",
  "tokio",
- "twitch",
 ]
 
 [[package]]
@@ -3117,21 +3140,6 @@ name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59547bce71d9c38b83d9c0e92b6066c4253371f15005def0c30d9657f50c7642"
-
-[[package]]
-name = "twitch"
-version = "0.2.0"
-dependencies = [
- "async-stream",
- "async-trait",
- "chrono",
- "futures",
- "futures-util",
- "prisma-client-rust",
- "reqwest",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "typenum"

@@ -7,10 +7,12 @@ use dotenv::dotenv;
 use futures::StreamExt;
 use prisma_client_rust::Direction;
 
-use twitch::channel::Channel;
-use twitch::gql::prelude::{Paginate, Save, SaveChunk};
-use twitch::prisma;
-use twitch::video::Video;
+use tcd::{
+	channel::Channel,
+	gql::prelude::{Paginate, Save, SaveChunk},
+	prisma,
+	video::Video,
+};
 
 #[tokio::main]
 async fn main() {
@@ -40,7 +42,11 @@ async fn main() {
 
 	for channel_name in args.channel {
 		let channel = match Channel::from_username(&channel_name).await {
-			Ok(channel) => channel,
+			Ok(Some(channel)) => channel,
+			Ok(None) => {
+				eprintln!("Channel {} not found", channel_name);
+				continue;
+			}
 			Err(err) => {
 				eprintln!("Failed to fetch channel {}: {}", channel_name, err);
 				continue;

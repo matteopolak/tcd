@@ -20,9 +20,79 @@ use crate::{
 	prisma::PrismaClient,
 };
 
+#[derive(Debug, PartialEq)]
 pub struct Channel {
 	pub id: i64,
 	pub username: String,
+}
+
+impl Channel {
+	/// Gets a channel from a username
+	pub async fn from_username(username: &str) -> Result<Option<Self>, reqwest::Error> {
+		let client = reqwest::Client::new();
+		let user = client
+			.post("https://gql.twitch.tv/gql")
+			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
+			.json(&GqlRequest {
+				operation_name: "PlayerTrackingContextQuery",
+				variables: GqlPlayerContextVariables {
+					channel: &username,
+					is_live: true,
+					has_collection: false,
+					collection_id: "",
+					video_id: "",
+					has_video: false,
+					slug: "",
+					has_clip: false,
+				},
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"3fbf508886ff5e008cb94047acc752aad7428c07b6055995604de16c4b01160a",
+					},
+				},
+			})
+			.send()
+			.await?;
+
+		let user: GqlResponse<GqlChannelResponse> = user.json().await?;
+		let user = match user.data.user {
+			Some(user) => user,
+			None => return Ok(None),
+		};
+
+		let user = client
+			.post("https://gql.twitch.tv/gql")
+			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
+			.json(&GqlRequest {
+				operation_name: "ViewerCard",
+				variables: GqlViewerCardVariables {
+					channel_id: user.id,
+					channel_name: &user.username,
+					has_channel_id: true,
+					username: &user.username,
+					badge_collection: true,
+					standard_gifting: false,
+				},
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
+							"20e51233313878f971daa32dfc039b2e2183822e62c13f47c48448d5d5e4f5e9",
+					},
+				},
+			})
+			.send()
+			.await?;
+
+		let user: GqlResponse<GqlUserResponse> = user.json().await?;
+
+		Ok(Some(Self {
+			id: user.data.user.id,
+			username: user.data.user.username,
+		}))
+	}
 }
 
 #[async_trait]
@@ -142,70 +212,6 @@ impl Paginate<GqlVideo> for Channel {
 					break;
 				}
 			}
-		})
-	}
-}
-
-impl Channel {
-	/// Gets a channel from a username
-	pub async fn from_username(username: &str) -> Result<Self, reqwest::Error> {
-		let client = reqwest::Client::new();
-		let user = client
-			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&GqlRequest {
-				operation_name: "PlayerTrackingContextQuery",
-				variables: GqlPlayerContextVariables {
-					channel: &username,
-					is_live: true,
-					has_collection: false,
-					collection_id: "",
-					video_id: "",
-					has_video: false,
-					slug: "",
-					has_clip: false,
-				},
-				extensions: GqlRequestExtensions {
-					persisted_query: GqlRequestPersistedQuery {
-						version: 1,
-						sha256_hash:
-							"3fbf508886ff5e008cb94047acc752aad7428c07b6055995604de16c4b01160a",
-					},
-				},
-			})
-			.send()
-			.await?;
-
-		let user: GqlResponse<GqlChannelResponse> = user.json().await?;
-		let user = client
-			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&GqlRequest {
-				operation_name: "ViewerCard",
-				variables: GqlViewerCardVariables {
-					channel_id: user.data.user.id,
-					channel_name: &user.data.user.username,
-					has_channel_id: true,
-					username: &user.data.user.username,
-					badge_collection: true,
-					standard_gifting: false,
-				},
-				extensions: GqlRequestExtensions {
-					persisted_query: GqlRequestPersistedQuery {
-						version: 1,
-						sha256_hash:
-							"20e51233313878f971daa32dfc039b2e2183822e62c13f47c48448d5d5e4f5e9",
-					},
-				},
-			})
-			.send()
-			.await?;
-
-		let user: GqlResponse<GqlUserResponse> = user.json().await?;
-
-		Ok(Self {
-			id: user.data.user.id,
-			username: user.data.user.username,
 		})
 	}
 }

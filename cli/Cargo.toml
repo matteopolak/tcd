@@ -1,5 +1,5 @@
 [package]
-name = "tcd"
+name = "tcd-cli"
 version = "0.2.0"
 edition = "2021"
 authors = ["Matthew Polak <contact@matteopolak.com>"]
@@ -15,8 +15,9 @@ clap = { version = "4.0.22", features = ["derive"] }
 dotenv = "0.15.0"
 futures = "0.3.25"
 tokio = "1.21.2"
-twitch = { path = "../twitch" }
+tcd = { path = "../tcd" }
 reqwest = "0.11.12"
+assert_matches = "1.5.0"
 
 [dependencies.prisma-client-rust]
 git = "https://github.com/Brendonovich/prisma-client-rust"

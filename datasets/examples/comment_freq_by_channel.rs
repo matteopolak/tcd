@@ -1,7 +1,7 @@
 use dotenv::dotenv;
 use prisma_client_rust::{raw, QueryError};
 use serde::{Deserialize, Serialize};
-use twitch::prisma;
+use tcd::prisma;
 
 use csv::Writer;
 

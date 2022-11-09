@@ -1,4 +1,4 @@
 target
-twitch/src/prisma.rs
+tcd/src/prisma.rs
 prisma/migrations
 .env
