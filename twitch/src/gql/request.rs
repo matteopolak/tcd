@@ -2,6 +2,40 @@ use crate::gql::prelude::string;
 use serde::Serialize;
 
 #[derive(Serialize)]
+pub struct GqlViewerCardVariables<'a> {
+	#[serde(with = "string", rename(serialize = "channelID"))]
+	pub channel_id: i64,
+	#[serde(rename(serialize = "channelLogin"))]
+	pub channel_name: &'a str,
+	#[serde(rename(serialize = "hasChannelID"))]
+	pub has_channel_id: bool,
+	#[serde(rename(serialize = "giftRecipientLogin"))]
+	pub username: &'a str,
+	#[serde(rename(serialize = "isViewerBadgeCollectionEnabled"))]
+	pub badge_collection: bool,
+	#[serde(rename(serialize = "withStandardGifting"))]
+	pub standard_gifting: bool,
+}
+
+#[derive(Serialize)]
+pub struct GqlPlayerContextVariables<'a> {
+	pub channel: &'a str,
+	#[serde(rename(serialize = "isLive"))]
+	pub is_live: bool,
+	#[serde(rename(serialize = "hasCollection"))]
+	pub has_collection: bool,
+	#[serde(rename(serialize = "collectionID"))]
+	pub collection_id: &'a str,
+	#[serde(rename(serialize = "videoID"))]
+	pub video_id: &'a str,
+	#[serde(rename(serialize = "hasVideo"))]
+	pub has_video: bool,
+	pub slug: &'a str,
+	#[serde(rename(serialize = "hasClip"))]
+	pub has_clip: bool,
+}
+
+#[derive(Serialize)]
 pub struct GqlVideoFilterVariables<'a> {
 	pub limit: usize,
 	#[serde(rename(serialize = "channelOwnerLogin"))]

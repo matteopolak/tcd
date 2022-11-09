@@ -20,6 +20,7 @@ use crate::{
 	prisma::{self, PrismaClient},
 };
 
+/// A video on Twitch
 #[derive(Debug)]
 pub struct Video {
 	pub id: i64,
@@ -31,6 +32,7 @@ pub struct Video {
 
 #[async_trait]
 impl Save for Video {
+	/// Saves the video to the database
 	async fn save(&self, client: &PrismaClient) -> Result<(), QueryError> {
 		client
 			.video()
@@ -48,6 +50,7 @@ impl Save for Video {
 }
 
 impl From<GqlEdge<GqlVideo>> for Video {
+	/// Converts a GraphQL video edge to a video
 	fn from(video: GqlEdge<GqlVideo>) -> Self {
 		Self {
 			id: video.node.id,
@@ -61,6 +64,7 @@ impl From<GqlEdge<GqlVideo>> for Video {
 
 #[async_trait]
 impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
+	/// Gets the comments for the video from a cursor
 	async fn chunk_by_cursor(
 		&self,
 		http: &reqwest::Client,
@@ -96,6 +100,7 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 		}
 	}
 
+	/// Gets the first comments for the video
 	async fn first_chunk(
 		&self,
 		http: &reqwest::Client,
@@ -132,6 +137,7 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 }
 
 impl Paginate<GqlComment> for Video {
+	/// Iterates the comments for a video
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
@@ -162,6 +168,7 @@ impl Paginate<GqlComment> for Video {
 
 #[async_trait(?Send)]
 impl SaveChunk<GqlComment> for Video {
+	/// Saves the comments for a video to the database
 	async fn save_chunks(
 		self,
 		client: &PrismaClient,

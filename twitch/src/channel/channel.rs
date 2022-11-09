@@ -4,13 +4,13 @@ use async_stream::try_stream;
 use async_trait::async_trait;
 use futures::Stream;
 use prisma_client_rust::QueryError;
-use serde_json::json;
 
 use crate::{
 	gql::{
 		prelude::{Chunk, ChunkError, Paginate, Save},
 		request::{
-			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery, GqlVideoFilterVariables,
+			GqlPlayerContextVariables, GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
+			GqlVideoFilterVariables, GqlViewerCardVariables,
 		},
 		structs::{
 			GqlChannelResponse, GqlEdgeContainer, GqlResponse, GqlTrackedUserResponse,
@@ -40,6 +40,7 @@ impl Save for Channel {
 
 #[async_trait]
 impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
+	/// Gets the next chunk of videos for the channel from a cursor
 	async fn chunk_by_cursor(
 		&self,
 		http: &reqwest::Client,
@@ -77,6 +78,7 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 			.map_or(Err(ChunkError::DataMissing), |v| Ok(v))
 	}
 
+	/// Gets the first chunk of videos for the channel
 	async fn first_chunk(
 		&self,
 		http: &reqwest::Client,
@@ -115,6 +117,7 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 }
 
 impl Paginate<GqlVideo> for Channel {
+	/// Gets a stream of all videos for the channel
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
@@ -144,31 +147,32 @@ impl Paginate<GqlVideo> for Channel {
 }
 
 impl Channel {
+	/// Gets a channel from a username
 	pub async fn from_username(username: &str) -> Result<Self, reqwest::Error> {
 		let client = reqwest::Client::new();
 		let user = client
 			.post("https://gql.twitch.tv/gql")
 			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&json!({
-				"operationName": "PlayerTrackingContextQuery",
-				"variables": {
-					"channel": username,
-					"isLive": true,
-					"hasCollection": false,
-					"collectionID": "",
-					"videoID": "",
-					"hasVideo": false,
-					"slug": "",
-					"hasClip": false,
+			.json(&GqlRequest {
+				operation_name: "PlayerTrackingContextQuery",
+				variables: GqlPlayerContextVariables {
+					channel: &username,
+					is_live: true,
+					has_collection: false,
+					collection_id: "",
+					video_id: "",
+					has_video: false,
+					slug: "",
+					has_clip: false,
 				},
-				"extensions": {
-					"persistedQuery": {
-						"version": 1,
-						"sha256Hash":
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
 							"3fbf508886ff5e008cb94047acc752aad7428c07b6055995604de16c4b01160a",
 					},
 				},
-			}))
+			})
 			.send()
 			.await?;
 
@@ -176,24 +180,24 @@ impl Channel {
 		let user = client
 			.post("https://gql.twitch.tv/gql")
 			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
-			.json(&json!({
-				"operationName": "ViewerCard",
-				"variables": {
-					"channelID": user.data.user.id.to_string(),
-					"channelLogin": user.data.user.username,
-					"hasChannelID": true,
-					"giftRecipientLogin": user.data.user.username,
-					"isViewerBadgeCollectionEnabled": true,
-					"withStandardGifting": false,
+			.json(&GqlRequest {
+				operation_name: "ViewerCard",
+				variables: GqlViewerCardVariables {
+					channel_id: user.data.user.id,
+					channel_name: &user.data.user.username,
+					has_channel_id: true,
+					username: &user.data.user.username,
+					badge_collection: true,
+					standard_gifting: false,
 				},
-				"extensions": {
-					"persistedQuery": {
-						"version": 1,
-						"sha256Hash":
+				extensions: GqlRequestExtensions {
+					persisted_query: GqlRequestPersistedQuery {
+						version: 1,
+						sha256_hash:
 							"20e51233313878f971daa32dfc039b2e2183822e62c13f47c48448d5d5e4f5e9",
 					},
 				},
-			}))
+			})
 			.send()
 			.await?;
 
