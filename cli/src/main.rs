@@ -1,9 +1,5 @@
 #![feature(future_join)]
-mod channel;
 mod cli;
-mod gql;
-mod prisma;
-mod video;
 
 use std::future::join;
 
@@ -13,7 +9,8 @@ use dotenv::dotenv;
 use futures::StreamExt;
 use prisma_client_rust::Direction;
 
-use crate::channel::{Channel, ChannelExt};
+use twitch::channel::{Channel, ChannelExt};
+use twitch::prisma;
 
 #[tokio::main]
 async fn main() {

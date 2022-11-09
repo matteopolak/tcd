@@ -1,9 +1,11 @@
 [workspace]
 members = [
+	"datasets",
 	"prisma-cli",
 	"twitch",
+	"cli",
 ]
 default-members = [
-	"twitch",
+	"cli",
 ]
 resolver = "2"

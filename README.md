@@ -40,3 +40,8 @@ cargo build --release
 # execute the binary
 target/release/tcd -c atrioc
 ```
+
+## Generating datasets
+
+Some pre-made dataset scripts are located in the [datasets](./datasets) directory.
+You can run these with `cargo run -p datasets --example <name>`.
