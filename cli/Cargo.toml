@@ -1,6 +1,6 @@
 [package]
 name = "tcd-cli"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Matthew Polak <contact@matteopolak.com>"]
 description = "A Twitch chat archiving and downloading tool"
@@ -14,10 +14,9 @@ chrono = "0.4.22"
 clap = { version = "4.0.22", features = ["derive"] }
 dotenv = "0.15.0"
 futures = "0.3.25"
-tokio = "1.21.2"
-tcd = { path = "../tcd" }
 reqwest = "0.11.12"
-assert_matches = "1.5.0"
+tcd = { path = "../tcd" }
+tokio = "1.21.2"
 
 [dependencies.prisma-client-rust]
 git = "https://github.com/Brendonovich/prisma-client-rust"
