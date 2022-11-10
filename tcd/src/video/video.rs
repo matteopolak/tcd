@@ -277,7 +277,7 @@ impl WriteChunk<GqlComment> for Video {
 						.filter_map(|c| {
 							if let Some(commenter) = c.node.commenter {
 								Some(format!(
-									"{},{},{},{},{:?}",
+									"{},{},{},\"{}\",{:?}",
 									video_id,
 									c.node.id,
 									commenter.id,
