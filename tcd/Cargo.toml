@@ -20,12 +20,3 @@ git = "https://github.com/Brendonovich/prisma-client-rust"
 tag = "0.6.3"
 default_features = false
 features = ["postgresql"]
-
-[features]
-rspc = ["prisma-client-rust-cli/rspc"]
-
-[build-dependencies.prisma-client-rust-cli]
-git = "https://github.com/Brendonovich/prisma-client-rust"
-tag = "0.6.3"
-default_features = false
-features = ["postgresql"]

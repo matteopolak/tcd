@@ -2839,7 +2839,6 @@ dependencies = [
  "futures",
  "futures-util",
  "prisma-client-rust",
- "prisma-client-rust-cli",
  "reqwest",
  "serde",
  "serde_json",
