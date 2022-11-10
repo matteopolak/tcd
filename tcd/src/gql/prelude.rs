@@ -1,4 +1,8 @@
-use std::pin::Pin;
+use std::{
+	io::{BufWriter, Write},
+	pin::Pin,
+	sync::Mutex,
+};
 
 use async_trait::async_trait;
 use futures::Stream;
@@ -48,12 +52,18 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 }
 
 #[async_trait(?Send)]
-pub trait SaveChunk<T>: Paginate<T> {
-	async fn save_chunks(
+pub trait WriteChunk<T>: Paginate<T> {
+	async fn write_to_pg(
 		self,
-		client: &PrismaClient,
 		http: &reqwest::Client,
+		client: &PrismaClient,
 		verbose: bool,
+	) -> Result<(), ChunkError>;
+
+	async fn write_to_stream(
+		self,
+		http: &reqwest::Client,
+		stream: &Mutex<BufWriter<impl Write>>,
 	) -> Result<(), ChunkError>;
 }
 
@@ -68,5 +78,7 @@ pub enum ChunkError {
 	Reqwest(reqwest::Error),
 	Serde(serde_json::Error),
 	Prisma(QueryError),
+	Io,
+	Csv,
 	DataMissing,
 }

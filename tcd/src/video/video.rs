@@ -1,4 +1,9 @@
-use std::{collections::HashMap, pin::Pin};
+use std::{
+	collections::HashMap,
+	io::{BufWriter, Write},
+	pin::Pin,
+	sync::Mutex,
+};
 
 use async_stream::try_stream;
 use async_trait::async_trait;
@@ -8,7 +13,7 @@ use prisma_client_rust::QueryError;
 
 use crate::{
 	gql::{
-		prelude::{Chunk, ChunkError, Paginate, Save, SaveChunk},
+		prelude::{Chunk, ChunkError, Paginate, Save, WriteChunk},
 		request::{
 			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
 			GqlVideoCommentsByCursorVariables, GqlVideoCommentsByOffsetVariables,
@@ -167,18 +172,18 @@ impl Paginate<GqlComment> for Video {
 }
 
 #[async_trait(?Send)]
-impl SaveChunk<GqlComment> for Video {
+impl WriteChunk<GqlComment> for Video {
 	/// Saves the comments for a video to the database
-	async fn save_chunks(
+	async fn write_to_pg(
 		self,
-		client: &PrismaClient,
 		http: &reqwest::Client,
+		client: &PrismaClient,
 		verbose: bool,
 	) -> Result<(), ChunkError> {
-		let mut stream = self.paginate(http);
+		let mut comment_chunks = self.paginate(http);
 		let video_id = self.id;
 
-		while let Some(Ok(chunk)) = stream.next().await {
+		while let Some(Ok(chunk)) = comment_chunks.next().await {
 			let mut comments: Vec<(
 				String,
 				i64,
@@ -251,6 +256,57 @@ impl SaveChunk<GqlComment> for Video {
 					fragments.map_err(|e| ChunkError::Prisma(e))?
 				);
 			}
+		}
+
+		Ok(())
+	}
+
+	async fn write_to_stream(
+		self,
+		http: &reqwest::Client,
+		stream: &Mutex<BufWriter<impl Write>>,
+	) -> Result<(), ChunkError> {
+		let video_id = self.id;
+
+		let mut chunks = self
+			.paginate(http)
+			.map(|c| {
+				c.and_then(|c| {
+					Ok(c.edges
+						.into_iter()
+						.filter_map(|c| {
+							if let Some(commenter) = c.node.commenter {
+								Some(format!(
+									"{},{},{},{},{}",
+									video_id,
+									c.node.id,
+									commenter.id,
+									c.node.created_at,
+									c.node
+										.message
+										.fragments
+										.into_iter()
+										.map(|f| f.text)
+										.collect::<String>()
+								))
+							} else {
+								None
+							}
+						})
+						.intersperse("\n".to_string())
+						.collect::<String>())
+				})
+			})
+			.chunks(5);
+
+		while let Some(chunk) = chunks.next().await {
+			let chunk = chunk.into_iter().collect::<Result<Vec<_>, _>>()?;
+
+			stream
+				.lock()
+				.unwrap()
+				.write(chunk.join("\n").as_bytes())
+				.map_err(|_| ChunkError::Io)?;
 		}
 
 		Ok(())
