@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, ValueHint};
 
 #[derive(Parser)]
 #[clap(
@@ -40,16 +40,16 @@ pub struct Args {
 	/// The file to pipe data to
 	/// If not specified, data will be printed to stdout
 	/// Overridden by --postgres
-	#[clap(alias = "out", short = 'o', long)]
+	#[clap(alias = "out", short = 'o', long, value_hint = ValueHint::FilePath)]
 	pub output: Option<PathBuf>,
 
-	/// The PostgreSQL connection string
+	/// The PostgreSQL connection string (leave blank to use DATABASE_URL env)
 	/// This will take precedence over all other output arguments
 	#[clap(alias = "pg", short = 'p', long)]
-	pub postgres: Option<String>,
+	pub postgres: Option<Option<String>>,
 
 	/// The Twitch client ID to use in the request headers
-	/// If not specified, the CLIENT_ID environment variable will be used if it exists, otherwise the default client ID will be used
+	/// If not specified, CLIENT_ID env will be used, otherwise a default
 	#[clap(alias = "id", short = 'i', long)]
 	pub client_id: Option<String>,
 }

@@ -52,7 +52,11 @@ async fn main() {
 		.expect("Failed to build HTTP client");
 
 	if let Some(postgres) = &args.postgres {
-		std::env::set_var("DATABASE_URL", postgres);
+		if let Some(postgres) = postgres {
+			std::env::set_var("DATABASE_URL", postgres);
+		} else {
+			std::env::var("DATABASE_URL").expect("DATABASE_URL env not set, either set it or specify a connection string to --postgres");
+		}
 
 		use_pg(http, args).await;
 	} else {
