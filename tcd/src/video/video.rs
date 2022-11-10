@@ -266,8 +266,6 @@ impl WriteChunk<GqlComment> for Video {
 		http: &reqwest::Client,
 		stream: &Mutex<BufWriter<impl Write>>,
 	) -> Result<(), ChunkError> {
-		let video_id = self.id;
-
 		let mut chunks = self
 			.paginate(http)
 			.map(|c| {
@@ -277,8 +275,9 @@ impl WriteChunk<GqlComment> for Video {
 						.filter_map(|c| {
 							if let Some(commenter) = c.node.commenter {
 								Some(format!(
-									"{},{},{},\"{}\",{:?}",
-									video_id,
+									"{},{},{},{},\"{}\",{:?}",
+									self.author_id,
+									self.id,
 									c.node.id,
 									commenter.id,
 									c.node.created_at,
