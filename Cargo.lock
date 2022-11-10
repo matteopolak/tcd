@@ -2837,7 +2837,7 @@ dependencies = [
 
 [[package]]
 name = "tcd"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2853,7 +2853,7 @@ dependencies = [
 
 [[package]]
 name = "tcd-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "assert_matches",
  "chrono",
