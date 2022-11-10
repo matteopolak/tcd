@@ -7,7 +7,7 @@ jobs:
     name: Compile and test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Install latest nightly
@@ -16,6 +16,8 @@ jobs:
           toolchain: nightly
           override: true
           components: rustfmt
+          profile: minimal
+      - uses: Swatinem/rust-cache@v2 
       - name: Generate Prisma client
         uses: actions-rs/cargo@v1
         with:
