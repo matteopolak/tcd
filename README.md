@@ -28,6 +28,17 @@ Pipe the chat messages of the first 5 videos of `Atrioc`, `Linkus7` and `Aspecti
 tcd -c atrioc -c linkus7 -c aspecticor -o hitman.csv --limit 5
 ```
 
+## Output format
+
+Data piped to a file or stdout will be in the following format:
+
+```csv
+channel_id,video_id,comment_id,commenter_id,created_at,text
+23211159,1642642569,3f445ae2-2f6e-4256-b367-df8132454786,157032028,"2022-11-03 21:25:22.754 +00:00","poggies"
+23211159,1642642569,da21e286-7c53-461f-b74f-a41f8a6b5c31,157032028,"2022-11-03 21:25:31.685 +00:00","going live"
+23211159,1642642569,8bf921c1-6606-4a5a-8703-0a182c20689e,57036924,"2022-11-03 21:25:32.919 +00:00","peepoHey big a"
+```
+
 ## Building from source
 
 ```bash
