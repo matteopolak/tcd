@@ -68,7 +68,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 	stream
 		.lock()
 		.unwrap()
-		.write("video_id,comment_id,commenter_id,created_at,text".as_bytes())
+		.write("video_id,comment_id,commenter_id,created_at,text\n".as_bytes())
 		.expect("Failed to write to output file");
 
 	for channel_name in args.channel {
