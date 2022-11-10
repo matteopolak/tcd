@@ -47,4 +47,9 @@ pub struct Args {
 	/// This will take precedence over all other output arguments
 	#[clap(alias = "pg", short = 'p', long)]
 	pub postgres: Option<String>,
+
+	/// The Twitch client ID to use in the request headers
+	/// If not specified, the CLIENT_ID environment variable will be used if it exists, otherwise the default client ID will be used
+	#[clap(alias = "id", short = 'i', long)]
+	pub client_id: Option<String>,
 }

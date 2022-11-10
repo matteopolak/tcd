@@ -20,6 +20,8 @@ use tcd::{
 	video::Video,
 };
 
+static CLIENT_ID: &str = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+
 #[tokio::main]
 async fn main() {
 	dotenv().unwrap();
@@ -27,12 +29,20 @@ async fn main() {
 	let args = Args::parse();
 
 	let mut headers = reqwest::header::HeaderMap::new();
+	let client_id = std::env::var("CLIENT_ID");
 
 	headers.insert(
 		"Client-ID",
-		reqwest::header::HeaderValue::from_str(
-			&std::env::var("CLIENT_ID").expect("CLIENT_ID not set"),
-		)
+		// First, try to get the client ID from the command-line arguments
+		reqwest::header::HeaderValue::from_str(if let Some(client_id) = args.client_id.as_ref() {
+			client_id
+		// Otherwise, check the environment variable CLIENT_ID
+		} else if let Ok(client_id) = client_id.as_ref() {
+			client_id
+		// Otherwise, use the default client ID
+		} else {
+			CLIENT_ID
+		})
 		.expect("Invalid CLIENT_ID header value"),
 	);
 
