@@ -3,7 +3,7 @@
 
 generator client {
   provider = "cargo prisma"
-  output   = "../twitch/src/prisma.rs"
+  output   = "../tcd/src/prisma.rs"
 }
 
 datasource db {
