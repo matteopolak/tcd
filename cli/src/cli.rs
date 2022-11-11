@@ -19,17 +19,9 @@ pub struct Args {
 	#[clap(short = 'c', long, required = true)]
 	pub channel: Vec<String>,
 
-	/// The number of threads to use
-	#[clap(short = 't', long, default_value_t = 10)]
-	pub threads: usize,
-
-	/// Whether to print download progress
-	#[clap(short = 'q', long, default_value_t = false)]
-	pub quiet: bool,
-
-	/// If specified, pipes data to stdout
-	#[clap(short = 's', long)]
-	pub stdout: bool,
+	/// The Twitch client ID to use in the request headers
+	#[clap(alias = "id", short = 'i', long)]
+	pub client_id: Option<String>,
 
 	/// Downloads the first n videos from each channel
 	#[clap(short = 'l', long)]
@@ -43,7 +35,15 @@ pub struct Args {
 	#[clap(alias = "pg", short = 'p', long)]
 	pub postgres: Option<Option<String>>,
 
-	/// The Twitch client ID to use in the request headers
-	#[clap(alias = "id", short = 'i', long)]
-	pub client_id: Option<String>,
+	/// Whether to print download progress
+	#[clap(short = 'q', long, default_value_t = false)]
+	pub quiet: bool,
+
+	/// If specified, pipes data to stdout
+	#[clap(short = 's', long)]
+	pub stdout: bool,
+
+	/// The number of threads to use
+	#[clap(short = 't', long, default_value_t = 10)]
+	pub threads: usize,
 }
