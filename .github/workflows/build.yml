@@ -4,13 +4,13 @@ name: build
 
 jobs:
   check:
-    name: Compile and test
+    name: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Install latest nightly
+      - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly

@@ -249,12 +249,16 @@ impl WriteChunk<GqlComment> for Video {
 			);
 
 			if verbose {
-				println!(
-					"Saved {} users, {} comments, and {} fragments",
-					users.map_err(|e| ChunkError::Prisma(e))?,
-					comments.map_err(|e| ChunkError::Prisma(e))?,
-					fragments.map_err(|e| ChunkError::Prisma(e))?
-				);
+				let users = users.map_err(|e| ChunkError::Prisma(e))?;
+				let comments = comments.map_err(|e| ChunkError::Prisma(e))?;
+				let fragments = fragments.map_err(|e| ChunkError::Prisma(e))?;
+
+				if users != 0 || comments != 0 || fragments != 0 {
+					println!(
+						"Saved {} users, {} comments, and {} fragments",
+						users, comments, fragments
+					);
+				}
 			}
 		}
 
