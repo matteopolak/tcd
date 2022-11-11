@@ -15,7 +15,7 @@ use clap::{Parser, ValueHint};
 "
 )]
 pub struct Args {
-	/// The channel to download. Specify multiple times to download multiple channels.
+	/// The channel(s) to download
 	#[clap(short = 'c', long, required = true)]
 	pub channel: Vec<String>,
 
@@ -24,12 +24,10 @@ pub struct Args {
 	pub threads: usize,
 
 	/// Whether to print download progress
-	/// Always true if --output or --stdout is specified
 	#[clap(short = 'q', long, default_value_t = false)]
 	pub quiet: bool,
 
-	/// Whether to pipe data to stdout
-	/// Overridden by --output and --postgres
+	/// If specified, pipes data to stdout
 	#[clap(short = 's', long)]
 	pub stdout: bool,
 
@@ -37,19 +35,15 @@ pub struct Args {
 	#[clap(short = 'l', long)]
 	pub limit: Option<usize>,
 
-	/// The file to pipe data to
-	/// If not specified, data will be printed to stdout
-	/// Overridden by --postgres
+	/// If specified, pipes data to the file
 	#[clap(alias = "out", short = 'o', long, value_hint = ValueHint::FilePath)]
 	pub output: Option<PathBuf>,
 
-	/// The PostgreSQL connection string (leave blank to use DATABASE_URL env)
-	/// This will take precedence over all other output arguments
+	/// The PostgreSQL connection string (leave blank to use DATABASE_URL)
 	#[clap(alias = "pg", short = 'p', long)]
 	pub postgres: Option<Option<String>>,
 
 	/// The Twitch client ID to use in the request headers
-	/// If not specified, CLIENT_ID env will be used, otherwise a default
 	#[clap(alias = "id", short = 'i', long)]
 	pub client_id: Option<String>,
 }
