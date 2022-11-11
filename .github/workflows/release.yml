@@ -1,12 +1,9 @@
 name: release
 
 on: 
- workflow_dispatch:
-   inputs:
-     release_tag:
-        description: 'Release Tag'
-        required: true
-        default: '1.0.0'
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   create-release:
@@ -86,42 +83,7 @@ jobs:
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/tcd.exe
-        asset_name: tcd-linux64.exe
-        tag: ${{ github.event.inputs.release_tag }}
-        overwrite: true
-  build-macos:
-    runs-on: macos-latest
-    needs: [create-release]
-    env:
-     ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Install nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        override: true
-        components: rustfmt
-        profile: minimal
-    - uses: Swatinem/rust-cache@v2 
-    - name: Generate Prisma client
-      uses: actions-rs/cargo@v1
-      with:
-        command: prisma
-        args: generate
-    - name: Build in release mode
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release
-    - name: Upload binaries to release
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: target/release/tcd.exe
-        asset_name: tcd-macos.exe
+        file: target/release/tcd
+        asset_name: tcd-linux64
         tag: ${{ github.event.inputs.release_tag }}
         overwrite: true
