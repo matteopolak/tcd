@@ -24,7 +24,7 @@ static CLIENT_ID: &str = "kimne78kx3ncx6brgo4mv6wki5h1ko";
 
 #[tokio::main]
 async fn main() {
-	dotenv().unwrap();
+	dotenv().ok();
 
 	let args = Args::parse();
 
