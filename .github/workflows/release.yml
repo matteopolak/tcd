@@ -15,8 +15,8 @@ jobs:
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.event.inputs.release_tag }}
-        release_name: ${{ github.event.inputs.release_tag }}
+        tag_name: ${{ github.ref }}
+        release_name: ${{ github.ref }}
   build-win64:
     runs-on: windows-latest
     needs: [create-release]
@@ -50,7 +50,7 @@ jobs:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/release/tcd.exe
         asset_name: tcd-win64.exe
-        tag: ${{ github.event.inputs.release_tag }}
+        tag: ${{ github.ref }}
         overwrite: true
   build-linux64:
     runs-on: ubuntu-latest
@@ -85,5 +85,5 @@ jobs:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
         file: target/release/tcd
         asset_name: tcd-linux64
-        tag: ${{ github.event.inputs.release_tag }}
+        tag: ${{ github.ref }}
         overwrite: true
