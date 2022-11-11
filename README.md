@@ -7,17 +7,17 @@
 [tcd](https://github.com/matteopolak/tcd) is a multi-threaded **T**witch **C**hat **D**ownloader built in Rust 🦀.
 
 ```powershell
-Usage: tcd [OPTIONS] --channel <CHANNEL>
+Usage: tcd.exe [OPTIONS] --channel <CHANNEL>
 
 Options:
-  -c, --channel <CHANNEL>      The channel to download. Specify multiple times to download multiple channels
-  -t, --threads <THREADS>      The number of threads to use [default: 10]
-  -q, --quiet                  Whether to print download progress Always true if --output or --stdout is specified
-  -s, --stdout                 Whether to pipe data to stdout Overridden by --output and --postgres
+  -c, --channel <CHANNEL>      The channel(s) to download
+  -i, --client-id <CLIENT_ID>  The Twitch client ID to use in the request headers
   -l, --limit <LIMIT>          Downloads the first n videos from each channel
-  -o, --output <OUTPUT>        The file to pipe data to If not specified, data will be printed to stdout Overridden by --postgres
-  -p, --postgres <POSTGRES>    The PostgreSQL connection string This will take precedence over all other output arguments
-  -i, --client-id <CLIENT_ID>  The Twitch client ID to use in the request headers If not specified, the CLIENT_ID environment variable will be used if it exists, otherwise the default client ID will be used
+  -o, --output <OUTPUT>        If specified, pipes data to the file
+  -p, --postgres [<POSTGRES>]  The PostgreSQL connection string (leave blank to use DATABASE_URL)
+  -q, --quiet                  Whether to print download progress
+  -s, --stdout                 If specified, pipes data to stdout
+  -t, --threads <THREADS>      The number of threads to use [default: 10]
   -h, --help                   Print help information
   -V, --version                Print version information
 ```
@@ -25,7 +25,7 @@ Options:
 Pipe the chat messages of the first 5 videos of `Atrioc`, `Linkus7` and `Aspecticor` to the file `hitman.csv`
 
 ```cli
-tcd -c atrioc -c linkus7 -c aspecticor -o hitman.csv --limit 5
+tcd --channel atrioc --channel linkus7 --channel aspecticor --limit 5 --output hitman.csv
 ```
 
 ## Output format
