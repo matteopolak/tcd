@@ -2,3 +2,4 @@ target
 tcd/src/prisma.rs
 prisma/migrations
 .env
+datasets

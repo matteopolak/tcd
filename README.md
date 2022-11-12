@@ -47,7 +47,7 @@ You can run these with `cargo run -p queries --example <name>`.
 
 ## Using pre-made datasets
 
-Pre-made datasets can be downloaded from the [datasets] branch of the repository.
+Pre-made datasets can be downloaded from [the Mediafire folder](https://www.mediafire.com/folder/agnhlbxz0q5zw/datasets).
 
 ## Piping data to a database
 
