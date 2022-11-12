@@ -1,6 +1,32 @@
 use std::path::PathBuf;
 
-use clap::{Parser, ValueHint};
+use clap::{Parser, ValueEnum, ValueHint};
+use serde::Deserialize;
+
+#[derive(ValueEnum, Deserialize, Clone)]
+#[serde(remote = "tcd::gql::prelude::Format")]
+pub enum Format {
+	Json,
+	Csv,
+}
+
+impl From<Format> for tcd::gql::prelude::Format {
+	fn from(format: Format) -> Self {
+		match format {
+			Format::Json => tcd::gql::prelude::Format::Json,
+			Format::Csv => tcd::gql::prelude::Format::Csv,
+		}
+	}
+}
+
+impl std::fmt::Display for Format {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Format::Json => write!(f, "json"),
+			Format::Csv => write!(f, "csv"),
+		}
+	}
+}
 
 #[derive(Parser)]
 #[clap(
@@ -23,6 +49,10 @@ pub struct Args {
 	#[clap(alias = "id", short = 'i', long)]
 	pub client_id: Option<String>,
 
+	/// Used with --output or --stdout
+	#[clap(alias = "fmt", short = 'f', long, default_value_t = Format::Csv)]
+	pub format: Format,
+
 	/// Downloads the first n videos from each channel
 	#[clap(short = 'l', long)]
 	pub limit: Option<usize>,
@@ -31,7 +61,7 @@ pub struct Args {
 	#[clap(alias = "out", short = 'o', long, value_hint = ValueHint::FilePath)]
 	pub output: Option<PathBuf>,
 
-	/// The PostgreSQL connection string (leave blank to use DATABASE_URL)
+	/// The PostgreSQL connection string [default: DATABASE_URL env]
 	#[clap(alias = "pg", short = 'p', long)]
 	pub postgres: Option<Option<String>>,
 

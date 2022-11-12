@@ -10,10 +10,11 @@ use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
 use futures::{join, Stream, StreamExt};
 use prisma_client_rust::QueryError;
+use serde::Serialize;
 
 use crate::{
 	gql::{
-		prelude::{Chunk, ChunkError, Paginate, Save, WriteChunk},
+		prelude::{Chunk, ChunkError, Format, Paginate, Save, WriteChunk},
 		request::{
 			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
 			GqlVideoCommentsByCursorVariables, GqlVideoCommentsByOffsetVariables,
@@ -269,6 +270,7 @@ impl WriteChunk<GqlComment> for Video {
 		self,
 		http: &reqwest::Client,
 		stream: &Mutex<BufWriter<impl Write>>,
+		format: &Format,
 	) -> Result<(), ChunkError> {
 		let mut chunks = self
 			.paginate(http)
@@ -278,8 +280,8 @@ impl WriteChunk<GqlComment> for Video {
 						.into_iter()
 						.filter_map(|c| {
 							if let Some(commenter) = c.node.commenter {
-								Some(format!(
-									"{},{},{},{},\"{}\",{:?}",
+								Some(format_data(
+									format,
 									self.author_id,
 									self.id,
 									c.node.id,
@@ -290,13 +292,13 @@ impl WriteChunk<GqlComment> for Video {
 										.fragments
 										.into_iter()
 										.map(|f| f.text)
-										.collect::<String>()
+										.collect::<String>(),
 								))
 							} else {
 								None
 							}
 						})
-						.intersperse("\n".to_string())
+						.intersperse(",".to_string())
 						.collect::<String>())
 				})
 			})
@@ -305,13 +307,54 @@ impl WriteChunk<GqlComment> for Video {
 		while let Some(chunk) = chunks.next().await {
 			let chunk = chunk.into_iter().collect::<Result<Vec<_>, _>>()?;
 
+			let mut stream = stream.lock().unwrap();
+
+			stream.write(b",").map_err(|_| ChunkError::Io)?;
+
 			stream
-				.lock()
-				.unwrap()
-				.write(chunk.join("\n").as_bytes())
+				.write(chunk.join(",").as_bytes())
 				.map_err(|_| ChunkError::Io)?;
 		}
 
 		Ok(())
+	}
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CommentEntry {
+	pub channel_id: i64,
+	pub video_id: i64,
+	pub comment_id: String,
+	pub commenter_id: i64,
+	pub created_at: DateTime<FixedOffset>,
+	pub text: String,
+}
+
+fn format_data(
+	format: &Format,
+	author_id: i64,
+	video_id: i64,
+	comment_id: String,
+	commenter_id: i64,
+	created_at: DateTime<FixedOffset>,
+	text: String,
+) -> String {
+	match format {
+		Format::Json => serde_json::to_string(&CommentEntry {
+			channel_id: author_id,
+			video_id,
+			comment_id,
+			commenter_id,
+			created_at,
+			text,
+		})
+		.unwrap(),
+		Format::Csv => {
+			format!(
+				"{},{},{},{},\"{}\",{:?}",
+				author_id, video_id, comment_id, commenter_id, created_at, text
+			)
+		}
 	}
 }

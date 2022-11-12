@@ -51,6 +51,12 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + '_>>;
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Format {
+	Json,
+	Csv,
+}
+
 #[async_trait(?Send)]
 pub trait WriteChunk<T>: Paginate<T> {
 	async fn write_to_pg(
@@ -64,6 +70,7 @@ pub trait WriteChunk<T>: Paginate<T> {
 		self,
 		http: &reqwest::Client,
 		stream: &Mutex<BufWriter<impl Write>>,
+		format: &Format,
 	) -> Result<(), ChunkError>;
 }
 

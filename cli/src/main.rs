@@ -15,7 +15,7 @@ use prisma_client_rust::Direction;
 
 use tcd::{
 	channel::Channel,
-	gql::prelude::{Paginate, Save, WriteChunk},
+	gql::prelude::{Format, Paginate, Save, WriteChunk},
 	prisma,
 	video::Video,
 };
@@ -69,7 +69,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 	args.quiet = true;
 
 	let stream: Mutex<BufWriter<Box<dyn Write>>> = if let Some(path) = args.output {
-		match File::options().append(true).create(true).open(path) {
+		match File::options().write(true).create(true).open(path) {
 			Ok(file) => Mutex::new(BufWriter::new(Box::new(file))),
 			Err(e) => {
 				panic!("Failed to open output file: {}", e);
@@ -79,10 +79,15 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 		Mutex::new(BufWriter::new(Box::new(std::io::stdout())))
 	};
 
+	let format = Format::from(args.format);
+
 	stream
 		.lock()
 		.unwrap()
-		.write("channel_id,video_id,comment_id,commenter_id,created_at,text\n".as_bytes())
+		.write(match format {
+			Format::Json => br#"[{"channelId":"i64","videoId":"i64","commentId":"string","commenterId":"i64","createdAt":"string","text":"string"}"#,
+			Format::Csv => b"channel_id,video_id,comment_id,commenter_id,created_at,text\n",
+		})
 		.expect("Failed to write to output file");
 
 	for channel_name in args.channel {
@@ -128,7 +133,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 				videos
 					.into_iter()
 					.map(|v| Video::from(v))
-					.map(|v| v.write_to_stream(&http, &stream)),
+					.map(|v| v.write_to_stream(&http, &stream, &format)),
 			)
 			.buffer_unordered(args.threads)
 			.collect::<Vec<_>>()
@@ -138,6 +143,14 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 				break;
 			}
 		}
+
+		let mut stream = stream.lock().unwrap();
+
+		if format == Format::Json {
+			stream.write(b"]").expect("Failed to write to output file");
+		}
+
+		stream.flush().expect("Failed to flush output file");
 	}
 }
 

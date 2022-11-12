@@ -2855,6 +2855,7 @@ dependencies = [
  "futures",
  "prisma-client-rust",
  "reqwest",
+ "serde",
  "tcd",
  "tokio",
 ]
