@@ -82,7 +82,7 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 				operation_name: "VideoCommentsByOffsetOrCursor",
 				variables: GqlVideoCommentsByCursorVariables {
 					video_id: self.id,
-					cursor: cursor,
+					cursor,
 				},
 				extensions: GqlRequestExtensions {
 					persisted_query: GqlRequestPersistedQuery {
@@ -157,6 +157,8 @@ impl Paginate<GqlComment> for Video {
 					None => self.first_chunk(http).await?,
 				};
 
+				let has_next = data.page_info.has_next_page;
+
 				cursor = match data.edges.last() {
 					Some(edge) => edge.cursor.clone(),
 					None => None,
@@ -164,7 +166,7 @@ impl Paginate<GqlComment> for Video {
 
 				yield data;
 
-				if cursor.is_none() {
+				if !has_next {
 					break;
 				}
 			}
@@ -311,7 +313,6 @@ impl WriteChunk<GqlComment> for Video {
 
 		while let Some(chunk) = chunks.next().await {
 			let chunk = chunk.into_iter().collect::<Result<Vec<_>, _>>()?;
-
 			let mut stream = stream.lock().unwrap();
 
 			stream
