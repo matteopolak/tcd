@@ -13,9 +13,10 @@ Usage: tcd.exe [OPTIONS] --channel <CHANNEL>
 Options:
   -c, --channel <CHANNEL>      The channel(s) to download
   -i, --client-id <CLIENT_ID>  The Twitch client ID to use in the request headers
+  -f, --format <FORMAT>        Used with --output or --stdout [default: csv] [possible values: json, csv]
   -l, --limit <LIMIT>          Downloads the first n videos from each channel
   -o, --output <OUTPUT>        If specified, pipes data to the file
-  -p, --postgres [<POSTGRES>]  The PostgreSQL connection string (leave blank to use DATABASE_URL)
+  -p, --postgres [<POSTGRES>]  The PostgreSQL connection string [default: DATABASE_URL env]
   -q, --quiet                  Whether to print download progress
   -s, --stdout                 If specified, pipes data to stdout
   -t, --threads <THREADS>      The number of threads to use [default: 10]
@@ -27,17 +28,6 @@ Pipe the chat messages of the first 5 videos of `Atrioc`, `Linkus7` and `Aspecti
 
 ```cli
 tcd --channel atrioc --channel linkus7 --channel aspecticor --limit 5 --output hitman.csv
-```
-
-## Output format
-
-Data piped to a file or stdout will be in the following format:
-
-```csv
-channel_id,video_id,comment_id,commenter_id,created_at,text
-23211159,1642642569,3f445ae2-2f6e-4256-b367-df8132454786,157032028,"2022-11-03 21:25:22.754 +00:00","poggies"
-23211159,1642642569,da21e286-7c53-461f-b74f-a41f8a6b5c31,157032028,"2022-11-03 21:25:31.685 +00:00","going live"
-23211159,1642642569,8bf921c1-6606-4a5a-8703-0a182c20689e,57036924,"2022-11-03 21:25:32.919 +00:00","peepoHey big a"
 ```
 
 ## Building from source
@@ -71,3 +61,37 @@ cargo prisma generate
 
 Or execute the [`migration.sql`](./scripts/migration.sql) SQL statements against your database.
 Then, set the `DATABASE_URL` environment variable (a `.env` file works too), or supply the connection URL with `--postgres <url>`.
+
+## Output format
+
+Data piped to a file or stdout will be in the following format:
+
+`--format csv`
+
+```csv
+channel_id,video_id,comment_id,commenter_id,created_at,text
+23211159,1642642569,3f445ae2-2f6e-4256-b367-df8132454786,157032028,"2022-11-03 21:25:22.754 +00:00","poggies"
+```
+
+`--format json`
+
+```json
+[
+  {
+    "channelId": "i64",
+    "videoId": "i64",
+    "commentId": "string",
+    "commenterId": "i64",
+    "createdAt": "string",
+    "text": "string"
+  },
+  {
+    "channelId": 23211159,
+    "videoId": 1642642569,
+    "commentId": "3f445ae2-2f6e-4256-b367-df8132454786",
+    "commenterId": 157032028,
+    "createdAt": "2022-11-03 21:25:22.754 +00:00",
+    "text": "poggies"
+  },
+]
+```
