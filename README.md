@@ -1,6 +1,7 @@
 # Twitch Chat Downloader 🗒️
 
-![Build Status](https://github.com/matteopolak/tcd/actions/workflows/rust.yml/badge.svg)
+![Build Status](https://github.com/matteopolak/tcd/actions/workflows/build.yml/badge.svg)
+![Release Status](https://github.com/matteopolak/tcd/actions/workflows/release.yml/badge.svg)
 [![License:GPLv3](https://img.shields.io/badge/license-GPL--3.0-yellow.svg)](https://opensource.org/licenses/GPL-3.0)
 [![Rust:Nightly](https://img.shields.io/badge/rust-nightly-blue.svg)](https://www.rust-lang.org/tools/install)
 
