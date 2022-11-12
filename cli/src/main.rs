@@ -91,7 +91,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 		.expect("Failed to write to output file");
 
 	for channel_name in args.channel {
-		let channel = match Channel::from_username(&channel_name).await {
+		let channel = match Channel::from_username(&http, &channel_name).await {
 			Ok(Some(channel)) => channel,
 			Ok(None) => {
 				eprintln!("Channel {} not found", channel_name);
@@ -161,7 +161,7 @@ async fn use_pg(http: reqwest::Client, args: Args) {
 	};
 
 	for channel_name in args.channel {
-		let channel = match Channel::from_username(&channel_name).await {
+		let channel = match Channel::from_username(&http, &channel_name).await {
 			Ok(Some(channel)) => channel,
 			Ok(None) => {
 				eprintln!("Channel {} not found", channel_name);

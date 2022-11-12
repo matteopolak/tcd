@@ -28,11 +28,12 @@ pub struct Channel {
 
 impl Channel {
 	/// Gets a channel from a username
-	pub async fn from_username(username: &str) -> Result<Option<Self>, reqwest::Error> {
-		let client = reqwest::Client::new();
-		let user = client
+	pub async fn from_username(
+		http: &reqwest::Client,
+		username: &str,
+	) -> Result<Option<Self>, reqwest::Error> {
+		let user = http
 			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
 			.json(&GqlRequest {
 				operation_name: "PlayerTrackingContextQuery",
 				variables: GqlPlayerContextVariables {
@@ -62,9 +63,8 @@ impl Channel {
 			None => return Ok(None),
 		};
 
-		let user = client
+		let user = http
 			.post("https://gql.twitch.tv/gql")
-			.header("Client-ID", std::env::var("CLIENT_ID").unwrap())
 			.json(&GqlRequest {
 				operation_name: "ViewerCard",
 				variables: GqlViewerCardVariables {
