@@ -69,4 +69,5 @@ cargo prisma migrate dev --name init
 cargo prisma generate
 ```
 
+Or execute the [`migration.sql`](./scripts/migration.sql) SQL statements against your database.
 Then, set the `DATABASE_URL` environment variable (a `.env` file works too), or supply the connection URL with `--postgres <url>`.
