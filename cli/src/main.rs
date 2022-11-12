@@ -86,7 +86,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 		.unwrap()
 		.write(match format {
 			Format::Json => br#"[{"channelId":"i64","videoId":"i64","commentId":"string","commenterId":"i64","createdAt":"string","text":"string"}"#,
-			Format::Csv => b"channel_id,video_id,comment_id,commenter_id,created_at,text\n",
+			Format::Csv => b"channel_id,video_id,comment_id,commenter_id,created_at,text",
 		})
 		.expect("Failed to write to output file");
 

@@ -42,8 +42,12 @@ target/release/tcd -c atrioc
 
 ## Generating datasets
 
-Some pre-made dataset scripts are located in the [datasets](./datasets) directory.
-You can run these with `cargo run -p datasets --example <name>`.
+Some pre-made dataset scripts are located in the [queries](./queries) directory.
+You can run these with `cargo run -p queries --example <name>`.
+
+## Using pre-made datasets
+
+Pre-made datasets can be downloaded from the [datasets] branch of the repository.
 
 ## Piping data to a database
 

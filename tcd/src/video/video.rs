@@ -272,6 +272,11 @@ impl WriteChunk<GqlComment> for Video {
 		stream: &Mutex<BufWriter<impl Write>>,
 		format: &Format,
 	) -> Result<(), ChunkError> {
+		let join_str = match format {
+			Format::Json => ",",
+			Format::Csv => "\n",
+		};
+
 		let mut chunks = self
 			.paginate(http)
 			.map(|c| {
@@ -298,7 +303,7 @@ impl WriteChunk<GqlComment> for Video {
 								None
 							}
 						})
-						.intersperse(",".to_string())
+						.intersperse(join_str.to_string())
 						.collect::<String>())
 				})
 			})
@@ -309,10 +314,12 @@ impl WriteChunk<GqlComment> for Video {
 
 			let mut stream = stream.lock().unwrap();
 
-			stream.write(b",").map_err(|_| ChunkError::Io)?;
+			stream
+				.write(join_str.as_bytes())
+				.map_err(|_| ChunkError::Io)?;
 
 			stream
-				.write(chunk.join(",").as_bytes())
+				.write(chunk.join(join_str).as_bytes())
 				.map_err(|_| ChunkError::Io)?;
 		}
 

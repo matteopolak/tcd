@@ -1,8 +1,8 @@
 [workspace]
 members = [
 	"cli",
-	"datasets",
 	"prisma-cli",
+	"queries",
 	"tcd",
 ]
 default-members = [
