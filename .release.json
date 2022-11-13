@@ -3,13 +3,19 @@
 		{
 			"title": "## 🚀 Features",
 			"labels": [
-				"feature"
+				"feat"
 			]
 		},
 		{
 			"title": "## 🐛 Fixes",
 			"labels": [
 				"fix"
+			]
+		},
+		{
+			"title": "## 🗑️ Removals",
+			"labels": [
+				"remove"
 			]
 		},
 		{
@@ -26,8 +32,8 @@
 		"order": "ASC",
 		"on_property": "mergedAt"
 	},
-	"template": "${{UNCATEGORIZED}}",
-	"pr_template": "- **${{TITLE}}** (#${{NUMBER}}) by ${{AUTHOR}}",
+	"template": "${{CHANGELOG}}",
+	"pr_template": "- [**${{TITLE}}**](https://github.com/matteopolak/tcd/commit/${{MERGE_SHA}}) by ${{AUTHOR}}",
 	"empty_template": "- no changes",
 	"max_tags_to_fetch": 200,
 	"max_pull_requests": 200,
@@ -40,6 +46,13 @@
 			"flags": "gu"
 		}
 	},
+	"label_extractor": [
+		{
+			"pattern": "^(.+): (.+)",
+			"target": "$1",
+			"on_property": "title"
+		}
+	],
 	"base_branches": [
 		"dev"
 	]
