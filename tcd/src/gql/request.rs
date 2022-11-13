@@ -2,6 +2,14 @@ use crate::gql::prelude::string;
 use serde::Serialize;
 
 #[derive(Serialize)]
+pub struct GqlVideoMetadataVariables<'a> {
+	#[serde(rename(serialize = "channelLogin"))]
+	pub username: &'a str,
+	#[serde(with = "string", rename(serialize = "videoID"))]
+	pub video_id: &'a i64,
+}
+
+#[derive(Serialize)]
 pub struct GqlViewerCardVariables<'a> {
 	#[serde(with = "string", rename(serialize = "channelID"))]
 	pub channel_id: i64,

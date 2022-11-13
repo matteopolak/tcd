@@ -139,3 +139,8 @@ pub struct GqlTrackedUserResponse {
 pub struct GqlVideoContentResponse {
 	pub video: Option<GqlVideoContent>,
 }
+
+#[derive(Deserialize, Debug)]
+pub struct GqlVideoMetadataResponse {
+	pub video: Option<GqlVideo>,
+}

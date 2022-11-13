@@ -8,7 +8,7 @@
 [tcd](https://github.com/matteopolak/tcd) is a multi-threaded **T**witch **C**hat **D**ownloader built in Rust 🦀.
 
 ```powershell
-Usage: tcd.exe [OPTIONS] --channel <CHANNEL>
+Usage: tcd.exe [OPTIONS] <--channel <CHANNEL>|--video <VIDEO>>
 
 Options:
   -c, --channel <CHANNEL>      The channel(s) to download
@@ -20,14 +20,21 @@ Options:
   -q, --quiet                  Whether to print download progress
   -s, --stdout                 If specified, pipes data to stdout
   -t, --threads <THREADS>      The number of threads to use [default: 10]
+  -v, --video <VIDEO>          The video ids to download the chat for
   -h, --help                   Print help information
   -V, --version                Print version information
 ```
 
 Pipe the chat messages of the first 5 videos of `Atrioc`, `Linkus7` and `Aspecticor` to the file `hitman.csv`
 
-```cli
+```powershell
 tcd --channel atrioc --channel linkus7 --channel aspecticor --limit 5 --output hitman.csv
+```
+
+Save the chat from the videos with id `1649326959` and `1648474855` to the connected PostgreSQL database.
+
+```powershell
+tcd --video 1649326959 --video 1648474855 --postgres
 ```
 
 ## Building from source

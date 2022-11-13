@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, ValueEnum, ValueHint};
+use clap::{ArgGroup, Parser, ValueEnum, ValueHint};
 use serde::Deserialize;
 
 #[derive(ValueEnum, Deserialize, Clone)]
@@ -40,9 +40,11 @@ impl std::fmt::Display for Format {
 {all-args}{after-help}
 "
 )]
+#[clap(group(ArgGroup::new("out").required(false).args(&["output", "postgres", "stdout"])))]
+#[clap(group(ArgGroup::new("in").required(true).args(&["channel", "video"])))]
 pub struct Args {
 	/// The channel(s) to download
-	#[clap(short = 'c', long, required = true)]
+	#[clap(short = 'c', long)]
 	pub channel: Vec<String>,
 
 	/// The Twitch client ID to use in the request headers
@@ -76,4 +78,8 @@ pub struct Args {
 	/// The number of threads to use
 	#[clap(short = 't', long, default_value_t = 10)]
 	pub threads: usize,
+
+	/// The video ids to download the chat for
+	#[clap(alias = "vid", short = 'v', long)]
+	pub video: Vec<i64>,
 }

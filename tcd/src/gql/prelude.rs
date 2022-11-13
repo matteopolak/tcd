@@ -48,7 +48,14 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + '_>>;
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a>>;
+}
+
+pub trait PaginateFilter<T> {
+	fn paginate_filter<'a>(
+		http: &'a reqwest::Client,
+		ids: &'a Vec<i64>,
+	) -> Pin<Box<dyn Stream<Item = Result<T, ChunkError>> + 'a>>;
 }
 
 #[derive(Debug, PartialEq)]
@@ -65,7 +72,6 @@ pub trait WriteChunk<T>: Paginate<T> {
 		client: &PrismaClient,
 		verbose: bool,
 	) -> Result<(), ChunkError>;
-
 	async fn write_to_stream(
 		self,
 		http: &reqwest::Client,

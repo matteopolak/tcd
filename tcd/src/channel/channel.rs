@@ -191,7 +191,7 @@ impl Paginate<GqlVideo> for Channel {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlVideo>, ChunkError>> + '_>> {
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlVideo>, ChunkError>> + 'a>> {
 		Box::pin(try_stream! {
 			let mut cursor: Option<String> = None;
 

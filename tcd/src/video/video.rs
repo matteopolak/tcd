@@ -14,13 +14,15 @@ use serde::Serialize;
 
 use crate::{
 	gql::{
-		prelude::{Chunk, ChunkError, Format, Paginate, Save, WriteChunk},
+		prelude::{Chunk, ChunkError, Format, Paginate, PaginateFilter, Save, WriteChunk},
 		request::{
 			GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
 			GqlVideoCommentsByCursorVariables, GqlVideoCommentsByOffsetVariables,
+			GqlVideoMetadataVariables,
 		},
 		structs::{
 			GqlComment, GqlEdge, GqlEdgeContainer, GqlResponse, GqlVideo, GqlVideoContentResponse,
+			GqlVideoMetadataResponse,
 		},
 	},
 	prisma::{self, PrismaClient},
@@ -64,6 +66,19 @@ impl From<GqlEdge<GqlVideo>> for Video {
 			author_id: video.node.user.id,
 			cursor: video.cursor,
 			created_at: video.node.created_at,
+		}
+	}
+}
+
+impl From<GqlVideo> for Video {
+	/// Converts a GraphQL video to a video
+	fn from(video: GqlVideo) -> Self {
+		Self {
+			id: video.id,
+			author: video.user.username,
+			author_id: video.user.id,
+			cursor: None,
+			created_at: video.created_at,
 		}
 	}
 }
@@ -147,7 +162,7 @@ impl Paginate<GqlComment> for Video {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlComment>, ChunkError>> + '_>> {
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlComment>, ChunkError>> + 'a>> {
 		Box::pin(try_stream! {
 			let mut cursor: Option<String> = None;
 
@@ -364,5 +379,44 @@ fn format_data(
 				author_id, video_id, comment_id, commenter_id, created_at, text
 			)
 		}
+	}
+}
+
+impl PaginateFilter<GqlVideo> for Video {
+	// Gets all videos for the channel that are in the given ids
+	fn paginate_filter<'a>(
+		http: &'a reqwest::Client,
+		ids: &'a Vec<i64>,
+	) -> Pin<Box<dyn Stream<Item = Result<GqlVideo, ChunkError>> + 'a>> {
+		Box::pin(try_stream! {
+			for id in ids {
+				let response = http
+					.post("https://gql.twitch.tv/gql")
+					.json(&GqlRequest {
+						operation_name: "VideoMetadata",
+						variables: GqlVideoMetadataVariables {
+							username: "",
+							video_id: id,
+						},
+						extensions: GqlRequestExtensions {
+							persisted_query: GqlRequestPersistedQuery {
+								version: 1,
+								sha256_hash:
+									"49b5b8f268cdeb259d75b58dcb0c1a748e3b575003448a2333dc5cdafd49adad",
+							},
+						},
+					})
+					.send()
+					.await
+					.map_err(|e| ChunkError::Reqwest(e))?;
+
+				let body: GqlResponse<GqlVideoMetadataResponse> = response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+
+				match body.data.video {
+					Some(video) => yield video,
+					None => continue,
+				}
+			}
+		})
 	}
 }
