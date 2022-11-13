@@ -8,7 +8,7 @@
 [tcd](https://github.com/matteopolak/tcd) is a multi-threaded **T**witch **C**hat **D**ownloader built in Rust 🦀.
 
 ```powershell
-Usage: tcd.exe [OPTIONS] <--channel <CHANNEL>|--video <VIDEO>>
+Usage: tcd [OPTIONS] <--channel <CHANNEL>|--video <VIDEO>>
 
 Options:
   -c, --channel <CHANNEL>      The channel(s) to download
@@ -44,7 +44,7 @@ tcd --video 1649326959 --video 1648474855 --postgres
 cargo build --release
 
 # execute the binary
-target/release/tcd -c atrioc
+target/release/tcd --help
 ```
 
 ## Generating datasets
@@ -103,6 +103,6 @@ channel_id,video_id,comment_id,commenter_id,created_at,text
     "commenterId": 157032028,
     "createdAt": "2022-11-03 21:25:22.754 +00:00",
     "text": "poggies"
-  },
+  }
 ]
 ```
