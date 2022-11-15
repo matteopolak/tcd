@@ -7,7 +7,7 @@ use prisma_client_rust::QueryError;
 
 use crate::{
 	gql::{
-		prelude::{Chunk, ChunkError, Paginate, Save},
+		prelude::{Chunk, ChunkError, PaginateMut, Save},
 		request::{
 			GqlPlayerContextVariables, GqlRequest, GqlRequestExtensions, GqlRequestPersistedQuery,
 			GqlVideoFilterVariables, GqlViewerCardVariables,
@@ -24,6 +24,7 @@ use crate::{
 pub struct Channel {
 	pub id: i64,
 	pub username: String,
+	pub last_video_id: Option<i64>,
 }
 
 impl Channel {
@@ -91,6 +92,7 @@ impl Channel {
 		Ok(Some(Self {
 			id: user.data.user.id,
 			username: user.data.user.username,
+			last_video_id: None,
 		}))
 	}
 }
@@ -186,10 +188,10 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 	}
 }
 
-impl Paginate<GqlVideo> for Channel {
+impl PaginateMut<GqlVideo> for Channel {
 	/// Gets a stream of all videos for the channel
-	fn paginate<'a>(
-		&'a self,
+	fn paginate_mut<'a>(
+		&'a mut self,
 		http: &'a reqwest::Client,
 	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlVideo>, ChunkError>> + 'a>> {
 		Box::pin(try_stream! {
@@ -202,7 +204,11 @@ impl Paginate<GqlVideo> for Channel {
 				};
 
 				cursor = match data.edges.last() {
-					Some(edge) => edge.cursor.clone(),
+					Some(edge) => {
+						self.last_video_id = Some(edge.node.id.clone());
+
+						edge.cursor.clone()
+					},
 					None => None,
 				};
 

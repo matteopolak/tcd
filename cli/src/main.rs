@@ -1,4 +1,3 @@
-#![feature(future_join)]
 mod cli;
 
 use std::{
@@ -15,7 +14,7 @@ use prisma_client_rust::Direction;
 
 use tcd::{
 	channel::Channel,
-	gql::prelude::{Format, Paginate, PaginateFilter, Save, WriteChunk},
+	gql::prelude::{Format, PaginateFilter, PaginateMut, Save, WriteChunk},
 	prisma,
 	video::Video,
 };
@@ -64,11 +63,80 @@ async fn main() {
 	}
 }
 
+async fn use_writer_channels(
+	http: &reqwest::Client,
+	mut channels: Vec<Channel>,
+	limit: &mut usize,
+	threads: usize,
+	stream: Mutex<BufWriter<Box<dyn Write>>>,
+	format: &Format,
+) -> (Mutex<BufWriter<Box<dyn Write>>>, Vec<Channel>) {
+	for channel in channels.iter_mut() {
+		let mut stop = false;
+		let stop_at = channel.last_video_id.unwrap_or(0);
+		let mut videos = channel.paginate_mut(&http);
+
+		while let Some(container) = videos.next().await {
+			let container = match container {
+				Ok(container) => container,
+				Err(e) => {
+					eprintln!("Failed to fetch videos: {:?}", e);
+					break;
+				}
+			};
+
+			let mut videos = container.edges;
+
+			// If the remaining videos to download is greater than 0,
+			// update the counter and stop if it reaches 0
+			if *limit > 0 {
+				if videos.len() > *limit {
+					videos.truncate(*limit);
+					stop = true;
+				}
+
+				*limit -= videos.len();
+			}
+
+			let idx = videos.iter().position(|v| v.node.id == stop_at);
+
+			if let Some(idx) = idx {
+				videos.truncate(idx);
+				stop = true;
+			}
+
+			futures::stream::iter(
+				videos
+					.into_iter()
+					.map(|v| Video::from(v))
+					.map(|v| v.write_to_stream(&http, &stream, &format)),
+			)
+			.buffer_unordered(threads)
+			.collect::<Vec<_>>()
+			.await;
+
+			if stop {
+				break;
+			}
+		}
+	}
+
+	eprintln!("finished scan");
+
+	stream
+		.lock()
+		.unwrap()
+		.flush()
+		.expect("Failed to flush output file");
+
+	(stream, channels)
+}
+
 async fn use_writer(http: reqwest::Client, mut args: Args) {
 	// Suppress logs when writing to a file or stdout
 	args.quiet = true;
 
-	let stream: Mutex<BufWriter<Box<dyn Write>>> = if let Some(path) = args.output {
+	let stream: Mutex<BufWriter<Box<dyn Write>>> = if let Some(path) = &args.output {
 		match File::options().write(true).create(true).open(path) {
 			Ok(file) => Mutex::new(BufWriter::new(Box::new(file))),
 			Err(e) => {
@@ -79,7 +147,7 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 		Mutex::new(BufWriter::new(Box::new(std::io::stdout())))
 	};
 
-	let format = Format::from(args.format);
+	let format = Format::from(&args.format);
 
 	stream
 		.lock()
@@ -109,58 +177,38 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 			.await;
 		}
 	} else {
-		for channel_name in args.channel {
-			let channel = match Channel::from_username(&http, &channel_name).await {
-				Ok(Some(channel)) => channel,
-				Ok(None) => {
-					eprintln!("Channel {} not found", channel_name);
-					continue;
-				}
-				Err(e) => {
-					eprintln!("Failed to fetch channel {}: {}", channel_name, e);
-					continue;
-				}
-			};
+		let channels = futures::stream::iter(args.channel.into_iter().map(|c| {
+			// TODO: fix this without leaking
+			let c: &'static str = Box::leak(Box::from(c));
 
-			let mut stop = false;
-			let mut limit = args.limit.unwrap_or(0);
-			let mut videos = channel.paginate(&http);
+			Channel::from_username(&http, &c)
+		}))
+		.buffer_unordered(args.threads)
+		.filter_map(|c| async move {
+			if let Ok(Some(c)) = c {
+				Some(c)
+			} else {
+				None
+			}
+		})
+		.collect::<Vec<_>>()
+		.await;
 
-			while let Some(container) = videos.next().await {
-				let container = match container {
-					Ok(container) => container,
-					Err(e) => {
-						eprintln!("Failed to fetch videos: {:?}", e);
-						break;
-					}
-				};
+		let mut limit = args.limit.unwrap_or(0);
+		let threads = args.threads;
+		let (stream, channels) =
+			use_writer_channels(&http, channels, &mut limit, threads, stream, &format).await;
 
-				let mut videos = container.edges;
+		if args.live {
+			let mut stream: Mutex<BufWriter<Box<dyn Write>>> = stream;
+			let mut channels = channels;
 
-				// If the remaining videos to download is greater than 0,
-				// update the counter and stop if it reaches 0
-				if limit > 0 {
-					if videos.len() > limit {
-						videos.truncate(limit);
-						stop = true;
-					}
+			loop {
+				tokio::time::sleep(std::time::Duration::from_secs_f64(args.wait * 60.)).await;
 
-					limit -= videos.len();
-				}
-
-				futures::stream::iter(
-					videos
-						.into_iter()
-						.map(|v| Video::from(v))
-						.map(|v| v.write_to_stream(&http, &stream, &format)),
-				)
-				.buffer_unordered(args.threads)
-				.collect::<Vec<_>>()
-				.await;
-
-				if stop {
-					break;
-				}
+				(stream, channels) =
+					use_writer_channels(&http, channels, &mut limit, threads, stream, &format)
+						.await;
 			}
 		}
 
@@ -172,6 +220,101 @@ async fn use_writer(http: reqwest::Client, mut args: Args) {
 
 		stream.flush().expect("Failed to flush output file");
 	}
+}
+
+async fn use_pg_channels(
+	http: &reqwest::Client,
+	mut channels: Vec<Channel>,
+	limit: &mut usize,
+	threads: usize,
+	quiet: bool,
+	client: tcd::prisma::PrismaClient,
+	first: bool,
+) -> (tcd::prisma::PrismaClient, Vec<Channel>) {
+	for channel in channels.iter_mut() {
+		let mut stop = false;
+		let stop_at = channel.last_video_id.unwrap_or(0);
+
+		let start_at = if first {
+			match client
+				.video()
+				.find_many(vec![prisma::video::WhereParam::AuthorIdEquals(channel.id)])
+				.order_by(prisma::video::OrderByParam::CreatedAt(Direction::Asc))
+				.take(1)
+				.exec()
+				.await
+				.and_then(|mut v| {
+					if v.is_empty() {
+						Ok(None)
+					} else {
+						Ok(Some(v.remove(0)))
+					}
+				}) {
+				Ok(Some(video)) => video.created_at,
+				Ok(None) => chrono::DateTime::<chrono::Utc>::MIN_UTC
+					.with_timezone(&chrono::FixedOffset::east(0)),
+				Err(e) => panic!(
+					"Failed to fetch latest video for {}: {}",
+					channel.username, e
+				),
+			}
+		} else {
+			chrono::DateTime::<chrono::Utc>::MIN_UTC.with_timezone(&chrono::FixedOffset::east(0))
+		};
+
+		let mut videos = channel.paginate_mut(&http);
+
+		while let Some(container) = videos.next().await {
+			let container = match container {
+				Ok(container) => container,
+				Err(e) => {
+					eprintln!("Failed to fetch videos: {:?}", e);
+					break;
+				}
+			};
+
+			let mut videos = container.edges;
+
+			// If the remaining videos to download is greater than 0,
+			// update the counter and stop if it reaches 0
+			if *limit > 0 {
+				if videos.len() > *limit {
+					videos.truncate(*limit);
+					stop = true;
+				}
+
+				*limit -= videos.len();
+			}
+
+			let idx = videos.iter().position(|v| v.node.id == stop_at);
+
+			if let Some(idx) = idx {
+				videos.truncate(idx);
+				stop = true;
+			}
+
+			let idx = videos.iter().position(|v| v.node.created_at < start_at);
+
+			if let Some(idx) = idx {
+				videos.drain(..idx);
+				stop = true;
+			}
+
+			futures::stream::iter(videos.into_iter().map(|v| Video::from(v)).map(|v| async {
+				v.save(&client).await.ok();
+				v.write_to_pg(&http, &client, !quiet).await
+			}))
+			.buffer_unordered(threads)
+			.collect::<Vec<_>>()
+			.await;
+
+			if stop {
+				break;
+			}
+		}
+	}
+
+	(client, channels)
 }
 
 async fn use_pg(http: reqwest::Client, args: Args) {
@@ -199,86 +342,42 @@ async fn use_pg(http: reqwest::Client, args: Args) {
 			.await;
 		}
 	} else {
-		for channel_name in args.channel {
-			let channel = match Channel::from_username(&http, &channel_name).await {
-				Ok(Some(channel)) => channel,
-				Ok(None) => {
-					eprintln!("Channel {} not found", channel_name);
-					continue;
-				}
-				Err(err) => {
-					eprintln!("Failed to fetch channel {}: {}", channel_name, err);
-					continue;
-				}
-			};
+		let channels = futures::stream::iter(args.channel.into_iter().map(|c| {
+			// TODO: fix this without leaking
+			let c: &'static str = Box::leak(Box::from(c));
 
-			if let Err(e) = channel.save(&client).await {
-				eprintln!("Failed to save channel {}: {}", channel_name, e);
+			Channel::from_username(&http, &c)
+		}))
+		.buffer_unordered(args.threads)
+		.filter_map(|c| async move {
+			if let Ok(Some(c)) = c {
+				Some(c)
+			} else {
+				None
 			}
+		})
+		.collect::<Vec<_>>()
+		.await;
 
-			let start_at = match client
-				.video()
-				.find_many(vec![prisma::video::WhereParam::AuthorIdEquals(channel.id)])
-				.order_by(prisma::video::OrderByParam::CreatedAt(Direction::Asc))
-				.take(1)
-				.exec()
-				.await
-				.and_then(|mut v| {
-					if v.is_empty() {
-						Ok(None)
-					} else {
-						Ok(Some(v.remove(0)))
-					}
-				}) {
-				Ok(Some(video)) => video.created_at,
-				Ok(None) => chrono::DateTime::<chrono::Utc>::MIN_UTC
-					.with_timezone(&chrono::FixedOffset::east(0)),
-				Err(e) => panic!("Failed to fetch latest video for {}: {}", channel_name, e),
-			};
+		let mut limit = args.limit.unwrap_or(0);
+		let threads = args.threads;
 
-			let mut stop = false;
-			let mut videos = channel.paginate(&http);
-			let mut limit = args.limit.unwrap_or(0);
+		let (client, channels) = use_pg_channels(
+			&http, channels, &mut limit, threads, args.quiet, client, true,
+		)
+		.await;
 
-			while let Some(container) = videos.next().await {
-				let container = match container {
-					Ok(container) => container,
-					Err(e) => {
-						eprintln!("Failed to fetch videos: {:?}", e);
-						break;
-					}
-				};
+		if args.live {
+			let mut client: tcd::prisma::PrismaClient = client;
+			let mut channels = channels;
 
-				let mut videos = container.edges;
+			loop {
+				tokio::time::sleep(std::time::Duration::from_secs_f64(args.wait * 60.)).await;
 
-				// If they were all created before the newest stored video, stop
-				// after re-checking them all (just in case the download was stopped)
-				if videos.iter().all(|v| v.node.created_at < start_at) {
-					stop = true;
-				}
-
-				// If the remaining videos to download is greater than 0,
-				// update the counter and stop if it reaches 0
-				if limit > 0 {
-					if videos.len() > limit {
-						videos.truncate(limit);
-						stop = true;
-					}
-
-					limit -= videos.len();
-				}
-
-				futures::stream::iter(videos.into_iter().map(|v| Video::from(v)).map(|v| async {
-					v.save(&client).await.ok();
-					v.write_to_pg(&http, &client, !args.quiet).await
-				}))
-				.buffer_unordered(args.threads)
-				.collect::<Vec<_>>()
+				(client, channels) = use_pg_channels(
+					&http, channels, &mut limit, threads, args.quiet, client, false,
+				)
 				.await;
-
-				if stop {
-					break;
-				}
 			}
 		}
 	}

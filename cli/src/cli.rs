@@ -19,6 +19,15 @@ impl From<Format> for tcd::gql::prelude::Format {
 	}
 }
 
+impl From<&Format> for tcd::gql::prelude::Format {
+	fn from(format: &Format) -> Self {
+		match format {
+			Format::Json => tcd::gql::prelude::Format::Json,
+			Format::Csv => tcd::gql::prelude::Format::Csv,
+		}
+	}
+}
+
 impl std::fmt::Display for Format {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -59,6 +68,10 @@ pub struct Args {
 	#[clap(short = 'l', long)]
 	pub limit: Option<usize>,
 
+	/// If specified, polls for new videos every `poll` seconds
+	#[clap(short = 'e', long, default_value_t = false)]
+	pub live: bool,
+
 	/// If specified, pipes data to the file
 	#[clap(alias = "out", short = 'o', long, value_hint = ValueHint::FilePath)]
 	pub output: Option<PathBuf>,
@@ -80,6 +93,10 @@ pub struct Args {
 	pub threads: usize,
 
 	/// The video ids to download the chat for
-	#[clap(alias = "vid", short = 'v', long)]
+	#[clap(short = 'v', long)]
 	pub video: Vec<i64>,
+
+	/// The number of minutes to wait between polls (`live` only)
+	#[clap(short = 'w', long, default_value_t = 30.)]
+	pub wait: f64,
 }

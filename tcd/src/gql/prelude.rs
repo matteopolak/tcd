@@ -51,6 +51,13 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a>>;
 }
 
+pub trait PaginateMut<T>: Chunk<GqlEdgeContainer<T>> {
+	fn paginate_mut<'a>(
+		&'a mut self,
+		http: &'a reqwest::Client,
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a>>;
+}
+
 pub trait PaginateFilter<T> {
 	fn paginate_filter<'a>(
 		http: &'a reqwest::Client,

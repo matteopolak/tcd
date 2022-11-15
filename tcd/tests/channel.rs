@@ -25,7 +25,8 @@ async fn test_valid_channel() {
 	assert_eq!(
 		Some(Channel {
 			id: 23211159,
-			username: "atrioc".to_string()
+			username: "atrioc".to_string(),
+			last_video_id: None,
 		}),
 		channel
 	);

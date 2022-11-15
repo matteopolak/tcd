@@ -15,12 +15,14 @@ Options:
   -i, --client-id <CLIENT_ID>  The Twitch client ID to use in the request headers
   -f, --format <FORMAT>        Used with --output or --stdout [default: csv] [possible values: json, csv]
   -l, --limit <LIMIT>          Downloads the first n videos from each channel
+  -e, --live                   If specified, polls for new videos every `poll` seconds
   -o, --output <OUTPUT>        If specified, pipes data to the file
   -p, --postgres [<POSTGRES>]  The PostgreSQL connection string [default: DATABASE_URL env]
   -q, --quiet                  Whether to print download progress
   -s, --stdout                 If specified, pipes data to stdout
   -t, --threads <THREADS>      The number of threads to use [default: 10]
   -v, --video <VIDEO>          The video ids to download the chat for
+  -w, --wait <WAIT>            The number of minutes to wait between polls (`live` only) [default: 30]
   -h, --help                   Print help information
   -V, --version                Print version information
 ```
