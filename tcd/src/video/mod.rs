@@ -1,3 +1,3 @@
-mod video;
+mod prelude;
 
-pub use video::*;
+pub use prelude::*;

@@ -1,3 +1,3 @@
-mod channel;
+mod prelude;
 
-pub use channel::*;
+pub use prelude::*;

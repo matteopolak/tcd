@@ -25,6 +25,7 @@ pub struct GqlViewerCardVariables<'a> {
 	pub standard_gifting: bool,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Serialize)]
 pub struct GqlPlayerContextVariables<'a> {
 	pub channel: &'a str,
@@ -70,6 +71,7 @@ pub struct GqlVideoCommentsByCursorVariables<'a> {
 	pub cursor: &'a str,
 }
 
+#[allow(clippy::module_name_repetitions)]
 #[derive(Serialize)]
 pub struct GqlRequest<V> {
 	#[serde(rename(serialize = "operationName"))]

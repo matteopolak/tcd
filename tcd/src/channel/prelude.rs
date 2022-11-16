@@ -29,6 +29,7 @@ pub struct Channel {
 
 impl Channel {
 	/// Gets a channel from a username
+	#[allow(clippy::missing_errors_doc)]
 	pub async fn from_username(
 		http: &reqwest::Client,
 		username: &str,
@@ -38,7 +39,7 @@ impl Channel {
 			.json(&GqlRequest {
 				operation_name: "PlayerTrackingContextQuery",
 				variables: GqlPlayerContextVariables {
-					channel: &username,
+					channel: username,
 					is_live: true,
 					has_collection: false,
 					collection_id: "",
@@ -139,15 +140,12 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 			})
 			.send()
 			.await
-			.map_err(|e| ChunkError::Reqwest(e))?;
+			.map_err(ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlTrackedUserResponse> =
-			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+			response.json().await.map_err(ChunkError::Reqwest)?;
 
-		body.data
-			.user
-			.videos
-			.map_or(Err(ChunkError::DataMissing), |v| Ok(v))
+		body.data.user.videos.ok_or(ChunkError::DataMissing)
 	}
 
 	/// Gets the first chunk of videos for the channel
@@ -176,15 +174,12 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 			})
 			.send()
 			.await
-			.map_err(|e| ChunkError::Reqwest(e))?;
+			.map_err(ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlTrackedUserResponse> =
-			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+			response.json().await.map_err(ChunkError::Reqwest)?;
 
-		body.data
-			.user
-			.videos
-			.map_or(Err(ChunkError::DataMissing), |v| Ok(v))
+		body.data.user.videos.ok_or(ChunkError::DataMissing)
 	}
 }
 

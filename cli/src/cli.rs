@@ -37,6 +37,7 @@ impl std::fmt::Display for Format {
 	}
 }
 
+#[allow(clippy::option_option)]
 #[derive(Parser)]
 #[clap(
 	author,

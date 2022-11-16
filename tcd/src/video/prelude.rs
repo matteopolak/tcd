@@ -109,10 +109,10 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 			})
 			.send()
 			.await
-			.map_err(|e| ChunkError::Reqwest(e))?;
+			.map_err(ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlVideoContentResponse> =
-			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+			response.json().await.map_err(ChunkError::Reqwest)?;
 
 		if let Some(video) = body.data.video {
 			Ok(video.comments)
@@ -144,10 +144,10 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 			})
 			.send()
 			.await
-			.map_err(|e| ChunkError::Reqwest(e))?;
+			.map_err(ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlVideoContentResponse> =
-			response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+			response.json().await.map_err(ChunkError::Reqwest)?;
 
 		if let Some(video) = body.data.video {
 			Ok(video.comments)
@@ -228,12 +228,13 @@ impl WriteChunk<GqlComment> for Video {
 
 				fragments.extend(comment.node.message.fragments.into_iter().enumerate().map(
 					|(index, fragment)| {
+						#[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 						prisma::comment_fragment::create_unchecked(
 							index as i32,
 							comment_id.clone(),
 							fragment.text,
 							vec![prisma::comment_fragment::emote::set(
-								fragment.emote.and_then(|e| Some(e.emote_id)),
+								fragment.emote.map(|e| e.emote_id),
 							)],
 						)
 					},
@@ -267,9 +268,9 @@ impl WriteChunk<GqlComment> for Video {
 			);
 
 			if verbose {
-				let users = users.map_err(|e| ChunkError::Prisma(e))?;
-				let comments = comments.map_err(|e| ChunkError::Prisma(e))?;
-				let fragments = fragments.map_err(|e| ChunkError::Prisma(e))?;
+				let users = users.map_err(ChunkError::Prisma)?;
+				let comments = comments.map_err(ChunkError::Prisma)?;
+				let fragments = fragments.map_err(ChunkError::Prisma)?;
 
 				if users != 0 || comments != 0 || fragments != 0 {
 					println!(
@@ -297,8 +298,8 @@ impl WriteChunk<GqlComment> for Video {
 		let mut chunks = self
 			.paginate(http)
 			.map(|c| {
-				c.and_then(|c| {
-					Ok(c.edges
+				c.map(|c| {
+					c.edges
 						.into_iter()
 						.filter_map(|c| {
 							if let Some(commenter) = c.node.commenter {
@@ -321,7 +322,7 @@ impl WriteChunk<GqlComment> for Video {
 							}
 						})
 						.intersperse(join_str.to_string())
-						.collect::<String>())
+						.collect::<String>()
 				})
 			})
 			.chunks(5);
@@ -386,7 +387,7 @@ impl PaginateFilter<GqlVideo> for Video {
 	// Gets all videos for the channel that are in the given ids
 	fn paginate_filter<'a>(
 		http: &'a reqwest::Client,
-		ids: &'a Vec<i64>,
+		ids: &'a [i64],
 	) -> Pin<Box<dyn Stream<Item = Result<GqlVideo, ChunkError>> + 'a>> {
 		Box::pin(try_stream! {
 			for id in ids {

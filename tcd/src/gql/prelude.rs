@@ -13,6 +13,7 @@ use crate::prisma::PrismaClient;
 use super::structs::GqlEdgeContainer;
 
 // https://github.com/serde-rs/json/issues/329
+#[allow(clippy::missing_errors_doc)]
 pub mod string {
 	use std::fmt::Display;
 	use std::str::FromStr;
@@ -61,7 +62,7 @@ pub trait PaginateMut<T>: Chunk<GqlEdgeContainer<T>> {
 pub trait PaginateFilter<T> {
 	fn paginate_filter<'a>(
 		http: &'a reqwest::Client,
-		ids: &'a Vec<i64>,
+		ids: &'a [i64],
 	) -> Pin<Box<dyn Stream<Item = Result<T, ChunkError>> + 'a>>;
 }
 
