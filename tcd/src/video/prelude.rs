@@ -268,9 +268,9 @@ impl WriteChunk<GqlComment> for Video {
 			);
 
 			if verbose {
-				let users = users.map_err(ChunkError::Prisma)?;
-				let comments = comments.map_err(ChunkError::Prisma)?;
-				let fragments = fragments.map_err(ChunkError::Prisma)?;
+				let users = users.unwrap_or(0);
+				let comments = comments.unwrap_or(0);
+				let fragments = fragments.unwrap_or(0);
 
 				if users != 0 || comments != 0 || fragments != 0 {
 					println!(
