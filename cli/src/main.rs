@@ -1,4 +1,3 @@
-#![feature(closure_track_caller)]
 #![warn(clippy::pedantic)]
 
 mod cli;

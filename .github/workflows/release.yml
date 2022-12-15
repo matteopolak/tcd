@@ -3,32 +3,32 @@ name: release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   create-release:
-   runs-on: ubuntu-latest
-   steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - name: Build changelog
-      id: github_release
-      uses: mikepenz/release-changelog-builder-action@v3
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        configuration: .release.json
-        commitMode: true
-    - name: Create release
-      id: create_release
-      uses: actions/create-release@v1.1.4
-      env:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Build changelog
+        id: github_release
+        uses: mikepenz/release-changelog-builder-action@v3
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }} 🎉
-        body: ${{ steps.github_release.outputs.changelog }}
+        with:
+          configuration: .release.json
+          commitMode: true
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }} 🎉
+          body: ${{ steps.github_release.outputs.changelog }}
   create-binaries:
     name: release ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -45,12 +45,12 @@ jobs:
             archive: tar
             ext: .tar.gz
             os: ubuntu-latest
-            bin: ''
+            bin: ""
           - target: x86_64-apple-darwin
             archive: zip
             ext: .zip
             os: macos-latest
-            bin: ''
+            bin: ""
     steps:
       - uses: actions/checkout@v3
         with:
@@ -58,7 +58,7 @@ jobs:
       - name: Install nightly
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-11-11
           override: true
           profile: minimal
           target: ${{ matrix.target }}
@@ -96,7 +96,7 @@ jobs:
           type: ${{ matrix.archive }}
           filename: release${{ matrix.ext }}
           directory: release
-          path: '*'
+          path: "*"
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
