@@ -1,19 +1,10 @@
 -- CreateTable
-CREATE TABLE "CommentFragment" (
-    "index" INTEGER NOT NULL,
-    "commentId" UUID NOT NULL,
-    "text" TEXT NOT NULL,
-    "emote" TEXT,
-
-    CONSTRAINT "CommentFragment_pkey" PRIMARY KEY ("index","commentId")
-);
-
--- CreateTable
 CREATE TABLE "Comment" (
     "id" UUID NOT NULL,
     "userId" BIGINT NOT NULL,
     "videoId" BIGINT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL,
+		"text" TEXT NOT NULL,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
