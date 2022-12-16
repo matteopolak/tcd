@@ -8,23 +8,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model CommentFragment {
-  index     Int
-  commentId String  @db.Uuid
-  comment   Comment @relation(fields: [commentId], references: [id])
-  text      String
-  emote     String?
-
-  @@id([index, commentId])
-}
-
 model Comment {
-  id        String            @id @db.Uuid
-  userId    BigInt            @db.BigInt
-  user      User              @relation(fields: [userId], references: [id])
-  videoId   BigInt            @db.BigInt
-  video     Video             @relation(fields: [videoId], references: [id])
-  fragments CommentFragment[]
+  id        String   @id @db.Uuid
+  userId    BigInt   @db.BigInt
+  user      User     @relation(fields: [userId], references: [id])
+  videoId   BigInt   @db.BigInt
+  video     Video    @relation(fields: [videoId], references: [id])
+  text      String
   createdAt DateTime
 }
 

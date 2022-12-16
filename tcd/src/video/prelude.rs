@@ -206,11 +206,10 @@ impl WriteChunk<GqlComment> for Video {
 				String,
 				i64,
 				i64,
+				String,
 				::prisma_client_rust::chrono::DateTime<::prisma_client_rust::chrono::FixedOffset>,
 				Vec<prisma::comment::SetParam>,
 			)> = vec![];
-			let mut fragments: Vec<(i32, String, String, Vec<prisma::comment_fragment::SetParam>)> =
-				vec![];
 			let mut users: HashMap<i64, (i64, String, Vec<prisma::user::SetParam>)> =
 				HashMap::new();
 
@@ -220,36 +219,27 @@ impl WriteChunk<GqlComment> for Video {
 					None => continue,
 				};
 
-				let comment_id = comment.node.id.clone();
-
 				users.entry(commenter.id).or_insert_with(|| {
 					prisma::user::create_unchecked(commenter.id, commenter.username, vec![])
 				});
-
-				fragments.extend(comment.node.message.fragments.into_iter().enumerate().map(
-					|(index, fragment)| {
-						#[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-						prisma::comment_fragment::create_unchecked(
-							index as i32,
-							comment_id.clone(),
-							fragment.text,
-							vec![prisma::comment_fragment::emote::set(
-								fragment.emote.map(|e| e.emote_id),
-							)],
-						)
-					},
-				));
 
 				comments.push(prisma::comment::create_unchecked(
 					comment.node.id,
 					commenter.id,
 					video_id,
+					comment
+						.node
+						.message
+						.fragments
+						.into_iter()
+						.map(|f| f.text)
+						.collect::<String>(),
 					comment.node.created_at,
 					vec![],
 				));
 			}
 
-			let (users, comments, fragments) = join!(
+			let (users, comments) = join!(
 				client
 					.user()
 					.create_many(users.into_values().into_iter().collect())
@@ -259,24 +249,15 @@ impl WriteChunk<GqlComment> for Video {
 					.comment()
 					.create_many(comments)
 					.skip_duplicates()
-					.exec(),
-				client
-					.comment_fragment()
-					.create_many(fragments)
-					.skip_duplicates()
 					.exec()
 			);
 
 			if verbose {
 				let users = users.unwrap_or(0);
 				let comments = comments.unwrap_or(0);
-				let fragments = fragments.unwrap_or(0);
 
-				if users != 0 || comments != 0 || fragments != 0 {
-					println!(
-						"Saved {} users, {} comments, and {} fragments",
-						users, comments, fragments
-					);
+				if users != 0 || comments != 0 {
+					println!("Saved {users} users, {comments} comments");
 				}
 			}
 		}
@@ -305,12 +286,12 @@ impl WriteChunk<GqlComment> for Video {
 							if let Some(commenter) = c.node.commenter {
 								Some(format_data(
 									format,
-									self.author_id,
+									&self.author,
 									self.id,
-									c.node.id,
-									commenter.id,
+									&c.node.id,
+									&commenter.username,
 									c.node.created_at,
-									c.node
+									&c.node
 										.message
 										.fragments
 										.into_iter()
@@ -346,30 +327,30 @@ impl WriteChunk<GqlComment> for Video {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CommentEntry {
-	pub channel_id: i64,
+pub struct CommentEntry<'a> {
+	pub channel: &'a str,
 	pub video_id: i64,
-	pub comment_id: String,
-	pub commenter_id: i64,
+	pub comment_id: &'a str,
+	pub commenter: &'a str,
 	pub created_at: DateTime<FixedOffset>,
-	pub text: String,
+	pub text: &'a str,
 }
 
 fn format_data(
 	format: &Format,
-	author_id: i64,
+	author: &String,
 	video_id: i64,
-	comment_id: String,
-	commenter_id: i64,
+	comment_id: &String,
+	commenter: &String,
 	created_at: DateTime<FixedOffset>,
-	text: String,
+	text: &String,
 ) -> String {
 	match format {
 		Format::Json => serde_json::to_string(&CommentEntry {
-			channel_id: author_id,
+			channel: author,
 			video_id,
 			comment_id,
-			commenter_id,
+			commenter,
 			created_at,
 			text,
 		})
@@ -377,7 +358,7 @@ fn format_data(
 		Format::Csv => {
 			format!(
 				"{},{},{},{},\"{}\",{:?}",
-				author_id, video_id, comment_id, commenter_id, created_at, text
+				author, video_id, comment_id, commenter, created_at, text
 			)
 		}
 	}
