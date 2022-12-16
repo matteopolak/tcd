@@ -69,8 +69,6 @@ async fn run_channels(
 		}
 	}
 
-	eprintln!("finished scan");
-
 	stream
 		.lock()
 		.unwrap()
@@ -101,8 +99,8 @@ pub async fn run(http: reqwest::Client, mut args: Args) {
 		.lock()
 		.unwrap()
 		.write_all(match format {
-			Format::Json => br#"[{"channelId":"i64","videoId":"i64","commentId":"string","commenterId":"i64","createdAt":"string","text":"string"}"#,
-			Format::Csv => b"channel_id,video_id,comment_id,commenter_id,created_at,text",
+			Format::Json => br#"[{"channel":"","video_id":0,"comment_id":0,"commenter":"","created_at":"","text":""}"#,
+			Format::Csv => b"channel,video_id,comment_id,commenter,created_at,text",
 		})
 		.expect("Failed to write to output file");
 
