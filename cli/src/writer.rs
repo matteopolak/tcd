@@ -95,14 +95,13 @@ pub async fn run(http: reqwest::Client, mut args: Args) {
 
 	let format = Format::from(&args.format);
 
-	stream
-		.lock()
-		.unwrap()
-		.write_all(match format {
-			Format::Json => br#"[{"channel":"","video_id":0,"comment_id":0,"commenter":"","created_at":"","text":""}"#,
-			Format::Csv => b"channel,video_id,comment_id,commenter,created_at,text",
-		})
-		.expect("Failed to write to output file");
+	if format == Format::Csv {
+		stream
+			.lock()
+			.unwrap()
+			.write_all(b"channel,video_id,comment_id,commenter,created_at,text\n")
+			.expect("Failed to write to output file");
+	}
 
 	if args.channel.is_empty() {
 		let videos = Video::paginate_filter(&http, &args.video);
@@ -158,12 +157,6 @@ pub async fn run(http: reqwest::Client, mut args: Args) {
 		}
 
 		let mut stream = stream.lock().unwrap();
-
-		if format == Format::Json {
-			stream
-				.write_all(b"]")
-				.expect("Failed to write to output file");
-		}
 
 		stream.flush().expect("Failed to flush output file");
 	}

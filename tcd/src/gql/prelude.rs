@@ -68,7 +68,7 @@ pub trait PaginateFilter<T> {
 
 #[derive(Debug, PartialEq)]
 pub enum Format {
-	Json,
+	JsonLines,
 	Csv,
 }
 

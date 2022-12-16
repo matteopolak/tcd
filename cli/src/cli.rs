@@ -3,17 +3,46 @@ use std::path::PathBuf;
 use clap::{ArgGroup, Parser, ValueEnum, ValueHint};
 use serde::Deserialize;
 
-#[derive(ValueEnum, Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 #[serde(remote = "tcd::gql::prelude::Format")]
 pub enum Format {
-	Json,
+	JsonLines,
 	Csv,
+}
+
+impl ValueEnum for Format {
+	fn value_variants<'a>() -> &'a [Format] {
+		&[Format::Csv, Format::JsonLines]
+	}
+
+	fn from_str(input: &str, ignore_case: bool) -> Result<Self, String> {
+		if ignore_case {
+			match input.to_lowercase().as_str() {
+				"jsonl" => Ok(Format::JsonLines),
+				"csv" => Ok(Format::Csv),
+				_ => Err(format!("{input} is not a valid format")),
+			}
+		} else {
+			match input {
+				"jsonl" => Ok(Format::JsonLines),
+				"csv" => Ok(Format::Csv),
+				_ => Err(format!("{input} is not a valid format")),
+			}
+		}
+	}
+
+	fn to_possible_value(&self) -> Option<clap::builder::PossibleValue> {
+		Some(match self {
+			Format::JsonLines => clap::builder::PossibleValue::new("jsonl"),
+			Format::Csv => clap::builder::PossibleValue::new("csv"),
+		})
+	}
 }
 
 impl From<Format> for tcd::gql::prelude::Format {
 	fn from(format: Format) -> Self {
 		match format {
-			Format::Json => tcd::gql::prelude::Format::Json,
+			Format::JsonLines => tcd::gql::prelude::Format::JsonLines,
 			Format::Csv => tcd::gql::prelude::Format::Csv,
 		}
 	}
@@ -22,7 +51,7 @@ impl From<Format> for tcd::gql::prelude::Format {
 impl From<&Format> for tcd::gql::prelude::Format {
 	fn from(format: &Format) -> Self {
 		match format {
-			Format::Json => tcd::gql::prelude::Format::Json,
+			Format::JsonLines => tcd::gql::prelude::Format::JsonLines,
 			Format::Csv => tcd::gql::prelude::Format::Csv,
 		}
 	}
@@ -31,7 +60,7 @@ impl From<&Format> for tcd::gql::prelude::Format {
 impl std::fmt::Display for Format {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Format::Json => write!(f, "json"),
+			Format::JsonLines => write!(f, "jsonl"),
 			Format::Csv => write!(f, "csv"),
 		}
 	}

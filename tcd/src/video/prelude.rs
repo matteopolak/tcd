@@ -271,10 +271,7 @@ impl WriteChunk<GqlComment> for Video {
 		stream: &Mutex<BufWriter<impl Write>>,
 		format: &Format,
 	) -> Result<(), ChunkError> {
-		let join_str = match format {
-			Format::Json => ",",
-			Format::Csv => "\n",
-		};
+		let join_str = "\n";
 
 		let mut chunks = self
 			.paginate(http)
@@ -313,11 +310,11 @@ impl WriteChunk<GqlComment> for Video {
 			let mut stream = stream.lock().unwrap();
 
 			stream
-				.write(join_str.as_bytes())
+				.write(chunk.join(join_str).as_bytes())
 				.map_err(|_| ChunkError::Io)?;
 
 			stream
-				.write(chunk.join(join_str).as_bytes())
+				.write(join_str.as_bytes())
 				.map_err(|_| ChunkError::Io)?;
 		}
 
@@ -326,7 +323,6 @@ impl WriteChunk<GqlComment> for Video {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CommentEntry<'a> {
 	pub channel: &'a str,
 	pub video_id: i64,
@@ -346,7 +342,7 @@ fn format_data(
 	text: &String,
 ) -> String {
 	match format {
-		Format::Json => serde_json::to_string(&CommentEntry {
+		Format::JsonLines => serde_json::to_string(&CommentEntry {
 			channel: author,
 			video_id,
 			comment_id,

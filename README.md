@@ -13,7 +13,7 @@ Usage: tcd [OPTIONS] <--channel <CHANNEL>|--video <VIDEO>>
 Options:
   -c, --channel <CHANNEL>      The channel(s) to download
   -i, --client-id <CLIENT_ID>  The Twitch client ID to use in the request headers
-  -f, --format <FORMAT>        Used with --output or --stdout [default: csv] [possible values: json, csv]
+  -f, --format <FORMAT>        Used with --output or --stdout [default: csv] [possible values: csv, jsonl]
   -l, --limit <LIMIT>          Downloads the first n videos from each channel
   -e, --live                   If specified, polls for new videos every `poll` seconds
   -o, --output <OUTPUT>        If specified, pipes data to the file
@@ -82,29 +82,14 @@ Data piped to a file or stdout will be in the following format:
 `--format csv`
 
 ```csv
-channel_id,video_id,comment_id,commenter_id,created_at,text
-23211159,1642642569,3f445ae2-2f6e-4256-b367-df8132454786,157032028,"2022-11-03 21:25:22.754 +00:00","poggies"
+channel,video_id,comment_id,commenter_id,created_at,text
+atrioc,1680333612,5e0e429e-949d-4a23-9160-96da782a7354,mazman100,"2022-12-16 04:34:39.236 +00:00","NOOO"
+atrioc,1680333612,b9939674-1340-4623-b351-c03d07c1e394,dazloc_,"2022-12-16 04:34:41.341 +00:00","WE BACK"
 ```
 
-`--format json`
+`--format jsonl`
 
 ```json
-[
-  {
-    "channelId": "i64",
-    "videoId": "i64",
-    "commentId": "string",
-    "commenterId": "i64",
-    "createdAt": "string",
-    "text": "string"
-  },
-  {
-    "channelId": 23211159,
-    "videoId": 1642642569,
-    "commentId": "3f445ae2-2f6e-4256-b367-df8132454786",
-    "commenterId": 157032028,
-    "createdAt": "2022-11-03 21:25:22.754 +00:00",
-    "text": "poggies"
-  }
-]
+{ "channel": "atrioc", "videoId": 1642642569, "commentId": "3f445ae2-2f6e-4256-b367-df8132454786", "commenter": "mazman100", "createdAt": "2022-11-03 21:25:22.754 +00:00", "text": "NOOO" }
+{ "channel": "atrioc", "videoId": 1642642569, "commentId": "b9939674-1340-4623-b351-c03d07c1e394", "commenter": "dazloc_", "createdAt": "2022-12-16 04:34:41.341 +00:00", "text": "WE BACK" }
 ```
