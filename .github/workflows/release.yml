@@ -112,10 +112,7 @@ jobs:
           args: --release --package tcd-gui
       - name: Move gui release files
         run: |
-          mkdir release
           mv target/release/tcd${{ matrix.bin }} release/tcd${{ matrix.bin }}
-          cp README.md release/README.md
-          cp LICENSE release/LICENSE
       - name: Archive release
         uses: thedoctor0/zip-release@main
         with:
