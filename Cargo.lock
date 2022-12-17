@@ -4279,7 +4279,7 @@ dependencies = [
 
 [[package]]
 name = "tcd-cli"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "chrono",
  "clap",
@@ -4294,7 +4294,7 @@ dependencies = [
 
 [[package]]
 name = "tcd-gui"
-version = "0.1.0"
+version = "0.4.1"
 dependencies = [
  "futures",
  "iced",
