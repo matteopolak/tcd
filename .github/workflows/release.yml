@@ -113,6 +113,7 @@ jobs:
       - name: Move gui release files
         run: |
           rm -r release
+          mkdir release
           mv target/release/tcd${{ matrix.bin }} release/tcd${{ matrix.bin }}
           cp README.md release/README.md
           cp LICENSE release/LICENSE
