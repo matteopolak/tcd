@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use async_stream::try_stream;
+use async_stream::stream;
 use async_trait::async_trait;
 use futures::Stream;
 use prisma_client_rust::QueryError;
@@ -20,26 +20,32 @@ use crate::{
 	prisma::PrismaClient,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Channel {
 	pub id: i64,
 	pub username: String,
 	pub last_video_id: Option<i64>,
 }
 
+#[derive(Clone, Debug)]
+pub enum ChannelError {
+	Request,
+	Json,
+}
+
 impl Channel {
 	/// Gets a channel from a username
 	#[allow(clippy::missing_errors_doc)]
-	pub async fn from_username(
+	pub async fn from_username<S: Into<String>>(
 		http: &reqwest::Client,
-		username: &str,
-	) -> Result<Option<Self>, reqwest::Error> {
+		username: S,
+	) -> Result<Option<Self>, ChannelError> {
 		let user = http
 			.post("https://gql.twitch.tv/gql")
 			.json(&GqlRequest {
 				operation_name: "PlayerTrackingContextQuery",
 				variables: GqlPlayerContextVariables {
-					channel: username,
+					channel: username.into().as_str(),
 					is_live: true,
 					has_collection: false,
 					collection_id: "",
@@ -57,9 +63,11 @@ impl Channel {
 				},
 			})
 			.send()
-			.await?;
+			.await
+			.map_err(|_| ChannelError::Request)?;
 
-		let user: GqlResponse<GqlChannelResponse> = user.json().await?;
+		let user: GqlResponse<GqlChannelResponse> =
+			user.json().await.map_err(|_| ChannelError::Json)?;
 		let user = match user.data.user {
 			Some(user) => user,
 			None => return Ok(None),
@@ -86,9 +94,11 @@ impl Channel {
 				},
 			})
 			.send()
-			.await?;
+			.await
+			.map_err(|_| ChannelError::Request)?;
 
-		let user: GqlResponse<GqlUserResponse> = user.json().await?;
+		let user: GqlResponse<GqlUserResponse> =
+			user.json().await.map_err(|_| ChannelError::Json)?;
 
 		Ok(Some(Self {
 			id: user.data.user.id,
@@ -114,10 +124,10 @@ impl Save for Channel {
 #[async_trait]
 impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 	/// Gets the next chunk of videos for the channel from a cursor
-	async fn chunk_by_cursor(
+	async fn chunk_by_cursor<'a, S: Into<&'a str> + Send>(
 		&self,
 		http: &reqwest::Client,
-		cursor: &str,
+		cursor: S,
 	) -> Result<GqlEdgeContainer<GqlVideo>, ChunkError> {
 		let response = http
 			.post("https://gql.twitch.tv/gql")
@@ -128,7 +138,7 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 					username: &self.username,
 					r#type: "ARCHIVE",
 					sort: "TIME",
-					cursor: Some(cursor),
+					cursor: Some(cursor.into()),
 				},
 				extensions: GqlRequestExtensions {
 					persisted_query: GqlRequestPersistedQuery {
@@ -140,10 +150,10 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 			})
 			.send()
 			.await
-			.map_err(ChunkError::Reqwest)?;
+			.map_err(|_| ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlTrackedUserResponse> =
-			response.json().await.map_err(ChunkError::Reqwest)?;
+			response.json().await.map_err(|_| ChunkError::Reqwest)?;
 
 		body.data.user.videos.ok_or(ChunkError::DataMissing)
 	}
@@ -174,10 +184,10 @@ impl Chunk<GqlEdgeContainer<GqlVideo>> for Channel {
 			})
 			.send()
 			.await
-			.map_err(ChunkError::Reqwest)?;
+			.map_err(|_| ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlTrackedUserResponse> =
-			response.json().await.map_err(ChunkError::Reqwest)?;
+			response.json().await.map_err(|_| ChunkError::Reqwest)?;
 
 		body.data.user.videos.ok_or(ChunkError::DataMissing)
 	}
@@ -188,14 +198,20 @@ impl PaginateMut<GqlVideo> for Channel {
 	fn paginate_mut<'a>(
 		&'a mut self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlVideo>, ChunkError>> + 'a>> {
-		Box::pin(try_stream! {
+	) -> Pin<Box<dyn Stream<Item = GqlEdgeContainer<GqlVideo>> + 'a + Send>> {
+		Box::pin(stream! {
 			let mut cursor: Option<String> = None;
 
 			loop {
 				let data = match cursor {
-					Some(ref cursor) => self.chunk_by_cursor(http, cursor).await?,
-					None => self.first_chunk(http).await?,
+					Some(cursor) => match self.chunk_by_cursor(http, cursor.as_str()).await {
+						Ok(data) => data,
+						Err(_) => break,
+					},
+					None => match self.first_chunk(http).await {
+						Ok(data) => data,
+						Err(_) => break,
+					},
 				};
 
 				cursor = match data.edges.last() {

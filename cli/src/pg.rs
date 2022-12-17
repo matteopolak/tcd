@@ -48,14 +48,6 @@ async fn run_channels(
 		let mut videos = channel.paginate_mut(http);
 
 		while let Some(container) = videos.next().await {
-			let container = match container {
-				Ok(container) => container,
-				Err(e) => {
-					eprintln!("Failed to fetch videos: {e:?}");
-					break;
-				}
-			};
-
 			let mut videos = container.edges;
 
 			// If the remaining videos to download is greater than 0,

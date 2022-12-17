@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"cli",
+	"gui",
 	"prisma-cli",
 	"queries",
 	"tcd",

@@ -79,12 +79,12 @@ jobs:
         with:
           command: prisma
           args: generate
-      - name: Build in release mode
+      - name: Build cli in release mode
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
-      - name: Move release files
+          args: --release --package tcd-cli
+      - name: Move cli release files
         run: |
           mkdir release
           mv target/release/tcd${{ matrix.bin }} release/tcd${{ matrix.bin }}
@@ -102,6 +102,32 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: release/release${{ matrix.ext }}
-          asset_name: ${{ matrix.target }}${{ matrix.ext }}
+          asset_name: cli-${{ matrix.target }}${{ matrix.ext }}
+          tag: ${{ github.ref }}
+          overwrite: true
+      - name: Build gui in release mode
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --package tcd-gui
+      - name: Move gui release files
+        run: |
+          mkdir release
+          mv target/release/tcd${{ matrix.bin }} release/tcd${{ matrix.bin }}
+          cp README.md release/README.md
+          cp LICENSE release/LICENSE
+      - name: Archive release
+        uses: thedoctor0/zip-release@main
+        with:
+          type: ${{ matrix.archive }}
+          filename: release${{ matrix.ext }}
+          directory: release
+          path: "*"
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release/release${{ matrix.ext }}
+          asset_name: gui-${{ matrix.target }}${{ matrix.ext }}
           tag: ${{ github.ref }}
           overwrite: true

@@ -16,23 +16,15 @@ async fn run_channels(
 	mut channels: Vec<Channel>,
 	limit: &mut usize,
 	threads: usize,
-	stream: Mutex<BufWriter<Box<dyn Write>>>,
+	stream: Mutex<BufWriter<Box<dyn Write + Send>>>,
 	format: &Format,
-) -> (Mutex<BufWriter<Box<dyn Write>>>, Vec<Channel>) {
+) -> (Mutex<BufWriter<Box<dyn Write + Send>>>, Vec<Channel>) {
 	for channel in &mut channels {
 		let mut stop = false;
 		let stop_at = channel.last_video_id.unwrap_or(0);
 		let mut videos = channel.paginate_mut(http);
 
 		while let Some(container) = videos.next().await {
-			let container = match container {
-				Ok(container) => container,
-				Err(e) => {
-					eprintln!("Failed to fetch videos: {e:?}");
-					break;
-				}
-			};
-
 			let mut videos = container.edges;
 
 			// If the remaining videos to download is greater than 0,
@@ -82,7 +74,7 @@ pub async fn run(http: reqwest::Client, mut args: Args) {
 	// Suppress logs when writing to a file or stdout
 	args.quiet = true;
 
-	let stream: Mutex<BufWriter<Box<dyn Write>>> = if let Some(path) = &args.output {
+	let stream: Mutex<BufWriter<Box<dyn Write + Send>>> = if let Some(path) = &args.output {
 		match File::options().write(true).create(true).open(path) {
 			Ok(file) => Mutex::new(BufWriter::new(Box::new(file))),
 			Err(e) => {
@@ -145,7 +137,7 @@ pub async fn run(http: reqwest::Client, mut args: Args) {
 			run_channels(&http, channels, &mut limit, threads, stream, &format).await;
 
 		if args.live {
-			let mut stream: Mutex<BufWriter<Box<dyn Write>>> = stream;
+			let mut stream: Mutex<BufWriter<Box<dyn Write + Send>>> = stream;
 			let mut channels = channels;
 
 			loop {

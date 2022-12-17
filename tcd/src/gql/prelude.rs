@@ -49,14 +49,14 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a>>;
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a + Send>>;
 }
 
 pub trait PaginateMut<T>: Chunk<GqlEdgeContainer<T>> {
 	fn paginate_mut<'a>(
 		&'a mut self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a>>;
+	) -> Pin<Box<dyn Stream<Item = GqlEdgeContainer<T>> + 'a + Send>>;
 }
 
 pub trait PaginateFilter<T> {
@@ -72,7 +72,7 @@ pub enum Format {
 	Csv,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait WriteChunk<T>: Paginate<T> {
 	async fn write_to_pg(
 		self,
@@ -83,22 +83,26 @@ pub trait WriteChunk<T>: Paginate<T> {
 	async fn write_to_stream(
 		self,
 		http: &reqwest::Client,
-		stream: &Mutex<BufWriter<impl Write>>,
+		stream: &Mutex<BufWriter<impl Write + Send>>,
 		format: &Format,
 	) -> Result<(), ChunkError>;
 }
 
 #[async_trait]
 pub trait Chunk<T> {
-	async fn chunk_by_cursor(&self, http: &reqwest::Client, cursor: &str) -> Result<T, ChunkError>;
+	async fn chunk_by_cursor<'a, S: Into<&'a str> + Send>(
+		&self,
+		http: &reqwest::Client,
+		cursor: S,
+	) -> Result<T, ChunkError>;
 	async fn first_chunk(&self, http: &reqwest::Client) -> Result<T, ChunkError>;
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ChunkError {
-	Reqwest(reqwest::Error),
-	Serde(serde_json::Error),
-	Prisma(QueryError),
+	Reqwest,
+	Serde,
+	Prisma,
 	Io,
 	Csv,
 	DataMissing,

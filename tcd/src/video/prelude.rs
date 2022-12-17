@@ -29,13 +29,35 @@ use crate::{
 };
 
 /// A video on Twitch
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Video {
 	pub id: i64,
+	pub title: String,
 	pub author: String,
 	pub author_id: i64,
 	pub cursor: Option<String>,
 	pub created_at: DateTime<FixedOffset>,
+	pub thumbnail_url: String,
+	pub thumbnail: Option<Vec<u8>>,
+}
+
+impl Video {
+	#[allow(clippy::missing_errors_doc)]
+	pub async fn get_thumbnail<'a>(
+		&'a mut self,
+		http: &reqwest::Client,
+	) -> Result<Option<&'a Vec<u8>>, reqwest::Error> {
+		if self.thumbnail.is_some() {
+			return Ok(self.thumbnail.as_ref());
+		}
+
+		let response = http.get(&self.thumbnail_url).send().await?;
+
+		let thumbnail = response.bytes().await?.into_iter().collect();
+		self.thumbnail = Some(thumbnail);
+
+		Ok(self.thumbnail.as_ref())
+	}
 }
 
 #[async_trait]
@@ -62,10 +84,13 @@ impl From<GqlEdge<GqlVideo>> for Video {
 	fn from(video: GqlEdge<GqlVideo>) -> Self {
 		Self {
 			id: video.node.id,
+			title: video.node.title,
 			author: video.node.user.username,
 			author_id: video.node.user.id,
 			cursor: video.cursor,
 			created_at: video.node.created_at,
+			thumbnail_url: video.node.thumbnail_url,
+			thumbnail: None,
 		}
 	}
 }
@@ -75,10 +100,13 @@ impl From<GqlVideo> for Video {
 	fn from(video: GqlVideo) -> Self {
 		Self {
 			id: video.id,
+			title: video.title,
 			author: video.user.username,
 			author_id: video.user.id,
 			cursor: None,
 			created_at: video.created_at,
+			thumbnail_url: video.thumbnail_url,
+			thumbnail: None,
 		}
 	}
 }
@@ -86,10 +114,10 @@ impl From<GqlVideo> for Video {
 #[async_trait]
 impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 	/// Gets the comments for the video from a cursor
-	async fn chunk_by_cursor(
+	async fn chunk_by_cursor<'a, S: Into<&'a str> + Send>(
 		&self,
 		http: &reqwest::Client,
-		cursor: &str,
+		cursor: S,
 	) -> Result<GqlEdgeContainer<GqlComment>, ChunkError> {
 		let response = http
 			.post("https://gql.twitch.tv/gql")
@@ -97,7 +125,7 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 				operation_name: "VideoCommentsByOffsetOrCursor",
 				variables: GqlVideoCommentsByCursorVariables {
 					video_id: self.id,
-					cursor,
+					cursor: cursor.into(),
 				},
 				extensions: GqlRequestExtensions {
 					persisted_query: GqlRequestPersistedQuery {
@@ -109,10 +137,10 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 			})
 			.send()
 			.await
-			.map_err(ChunkError::Reqwest)?;
+			.map_err(|_| ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlVideoContentResponse> =
-			response.json().await.map_err(ChunkError::Reqwest)?;
+			response.json().await.map_err(|_| ChunkError::Reqwest)?;
 
 		if let Some(video) = body.data.video {
 			Ok(video.comments)
@@ -144,10 +172,10 @@ impl Chunk<GqlEdgeContainer<GqlComment>> for Video {
 			})
 			.send()
 			.await
-			.map_err(ChunkError::Reqwest)?;
+			.map_err(|_| ChunkError::Reqwest)?;
 
 		let body: GqlResponse<GqlVideoContentResponse> =
-			response.json().await.map_err(ChunkError::Reqwest)?;
+			response.json().await.map_err(|_| ChunkError::Reqwest)?;
 
 		if let Some(video) = body.data.video {
 			Ok(video.comments)
@@ -162,13 +190,13 @@ impl Paginate<GqlComment> for Video {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlComment>, ChunkError>> + 'a>> {
+	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<GqlComment>, ChunkError>> + 'a + Send>> {
 		Box::pin(try_stream! {
 			let mut cursor: Option<String> = None;
 
 			loop {
 				let data = match cursor {
-					Some(ref cursor) => self.chunk_by_cursor(http, cursor).await?,
+					Some(cursor) => self.chunk_by_cursor(http, cursor.as_str()).await?,
 					None => self.first_chunk(http).await?,
 				};
 
@@ -189,7 +217,7 @@ impl Paginate<GqlComment> for Video {
 	}
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl WriteChunk<GqlComment> for Video {
 	/// Saves the comments for a video to the database
 	async fn write_to_pg(
@@ -268,7 +296,7 @@ impl WriteChunk<GqlComment> for Video {
 	async fn write_to_stream(
 		self,
 		http: &reqwest::Client,
-		stream: &Mutex<BufWriter<impl Write>>,
+		stream: &Mutex<BufWriter<impl Write + Send>>,
 		format: &Format,
 	) -> Result<(), ChunkError> {
 		let join_str = "\n";
@@ -386,9 +414,9 @@ impl PaginateFilter<GqlVideo> for Video {
 					})
 					.send()
 					.await
-					.map_err(|e| ChunkError::Reqwest(e))?;
+					.map_err(|_| ChunkError::Reqwest)?;
 
-				let body: GqlResponse<GqlVideoMetadataResponse> = response.json().await.map_err(|e| ChunkError::Reqwest(e))?;
+				let body: GqlResponse<GqlVideoMetadataResponse> = response.json().await.map_err(|_| ChunkError::Reqwest)?;
 
 				match body.data.video {
 					Some(video) => yield video,

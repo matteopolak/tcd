@@ -75,6 +75,9 @@ pub struct GqlVideo {
 	pub created_at: DateTime<FixedOffset>,
 	#[serde(rename(deserialize = "owner"))]
 	pub user: GqlChannel,
+	pub title: String,
+	#[serde(rename(deserialize = "previewThumbnailURL"))]
+	pub thumbnail_url: String,
 }
 
 #[derive(Deserialize, Debug)]

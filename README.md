@@ -90,6 +90,6 @@ atrioc,1680333612,b9939674-1340-4623-b351-c03d07c1e394,dazloc_,"2022-12-16 04:34
 `--format jsonl`
 
 ```json
-{ "channel": "atrioc", "video_id": 1642642569, "comment_id": "3f445ae2-2f6e-4256-b367-df8132454786", "commenter": "mazman100", "created_at": "2022-11-03 21:25:22.754 +00:00", "text": "NOOO" }
-{ "channel": "atrioc", "video_id": 1642642569, "comment_id": "b9939674-1340-4623-b351-c03d07c1e394", "commenter": "dazloc_", "created_at": "2022-12-16 04:34:41.341 +00:00", "text": "WE BACK" }
+{"channel":"atrioc","video_id":1642642569,"comment_id":"3f445ae2-2f6e-4256-b367-df8132454786","commenter":"mazman100","created_at":"2022-11-03 21:25:22.754 +00:00","text":"NOOO"}
+{"channel":"atrioc","video_id":1642642569,"comment_id":"b9939674-1340-4623-b351-c03d07c1e394","commenter":"dazloc_","created_at":"2022-12-16 04:34:41.341 +00:00","text":"WE BACK"}
 ```
