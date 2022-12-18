@@ -8,7 +8,7 @@ use std::{
 use async_stream::try_stream;
 use async_trait::async_trait;
 use chrono::{DateTime, FixedOffset};
-use futures::{join, Stream, StreamExt};
+use futures::{join, stream::BoxStream, Stream, StreamExt};
 use prisma_client_rust::QueryError;
 use serde::Serialize;
 
@@ -57,6 +57,20 @@ impl Video {
 		self.thumbnail = Some(thumbnail);
 
 		Ok(self.thumbnail.as_ref())
+	}
+
+	#[must_use]
+	pub fn clone_without_thumbnail(&self) -> Self {
+		Self {
+			id: self.id,
+			title: self.title.clone(),
+			author_id: self.author_id,
+			author: self.author.clone(),
+			cursor: self.cursor.clone(),
+			created_at: self.created_at,
+			thumbnail_url: self.thumbnail_url.clone(),
+			thumbnail: None,
+		}
 	}
 }
 
@@ -393,7 +407,7 @@ impl PaginateFilter<GqlVideo> for Video {
 	fn paginate_filter<'a>(
 		http: &'a reqwest::Client,
 		ids: &'a [i64],
-	) -> Pin<Box<dyn Stream<Item = Result<GqlVideo, ChunkError>> + 'a>> {
+	) -> BoxStream<'a, Result<GqlVideo, ChunkError>> {
 		Box::pin(try_stream! {
 			for id in ids {
 				let response = http

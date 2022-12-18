@@ -1,11 +1,10 @@
 use std::{
 	io::{BufWriter, Write},
-	pin::Pin,
 	sync::Mutex,
 };
 
 use async_trait::async_trait;
-use futures::Stream;
+use futures::stream::BoxStream;
 use prisma_client_rust::QueryError;
 
 use crate::prisma::PrismaClient;
@@ -49,21 +48,21 @@ pub trait Paginate<T>: Chunk<GqlEdgeContainer<T>> {
 	fn paginate<'a>(
 		&'a self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = Result<GqlEdgeContainer<T>, ChunkError>> + 'a + Send>>;
+	) -> BoxStream<'a, Result<GqlEdgeContainer<T>, ChunkError>>;
 }
 
 pub trait PaginateMut<T>: Chunk<GqlEdgeContainer<T>> {
 	fn paginate_mut<'a>(
 		&'a mut self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = GqlEdgeContainer<T>> + 'a + Send>>;
+	) -> BoxStream<'a, GqlEdgeContainer<T>>;
 }
 
 pub trait PaginateFilter<T> {
 	fn paginate_filter<'a>(
 		http: &'a reqwest::Client,
 		ids: &'a [i64],
-	) -> Pin<Box<dyn Stream<Item = Result<T, ChunkError>> + 'a>>;
+	) -> BoxStream<'a, Result<T, ChunkError>>;
 }
 
 #[derive(Debug, PartialEq)]

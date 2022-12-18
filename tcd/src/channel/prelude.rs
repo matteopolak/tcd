@@ -1,8 +1,6 @@
-use std::pin::Pin;
-
 use async_stream::stream;
 use async_trait::async_trait;
-use futures::Stream;
+use futures::stream::BoxStream;
 use prisma_client_rust::QueryError;
 
 use crate::{
@@ -198,7 +196,7 @@ impl PaginateMut<GqlVideo> for Channel {
 	fn paginate_mut<'a>(
 		&'a mut self,
 		http: &'a reqwest::Client,
-	) -> Pin<Box<dyn Stream<Item = GqlEdgeContainer<GqlVideo>> + 'a + Send>> {
+	) -> BoxStream<'a, GqlEdgeContainer<GqlVideo>> {
 		Box::pin(stream! {
 			let mut cursor: Option<String> = None;
 

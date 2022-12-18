@@ -191,7 +191,7 @@ impl Application for App {
 				let filename = self.filename.clone();
 				let task_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
 				let task = Task {
-					video: video.clone(),
+					video: video.clone_without_thumbnail(),
 					progress: Arc::new(Mutex::new(0.0)),
 					id: task_id,
 				};
@@ -264,24 +264,22 @@ impl Application for App {
 		);
 		let search_button = button("Go").on_press(Message::Search);
 		let channel = match (&self.channel, &self.videos) {
-			// TODO: display videos in a grid with a width of 5 blocks and
-			// an arbitrary height that is required to display all of them.
-			// use a scrollbar container if the height is too big.
 			(Some(Ok(_)), Some(videos)) => column(
 				videos
 					.chunks(3)
 					.into_iter()
 					.map(|videos| {
 						row(videos
-							.iter()
-							.map(|video| {
+							.into_iter()
+							.map(move |video| {
 								column![
 									Image::new(Handle::from_memory(
 										video.thumbnail.clone().unwrap()
 									)),
 									text(&video.title),
-									button(download_icon())
-										.on_press(Message::ShowModal(video.clone()))
+									button(download_icon()).on_press(Message::ShowModal(
+										video.clone_without_thumbnail()
+									))
 								]
 								.width(Length::Fill)
 								.into()
@@ -346,7 +344,7 @@ impl Application for App {
 				column![
 					text("Download chat?"),
 					text_input("Filename", &self.filename, Message::FilenameChanged),
-					button("Go").on_press(Message::Download(video.clone()))
+					button("Go").on_press(Message::Download(video.clone_without_thumbnail()))
 				]
 				.width(Length::Fill)
 				.height(Length::Fill),
