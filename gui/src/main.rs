@@ -270,7 +270,7 @@ impl Application for App {
 					.into_iter()
 					.map(|videos| {
 						row(videos
-							.into_iter()
+							.iter()
 							.map(move |video| {
 								column![
 									Image::new(Handle::from_memory(
