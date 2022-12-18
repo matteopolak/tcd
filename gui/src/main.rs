@@ -3,6 +3,7 @@ mod modal;
 
 use std::fs::File;
 use std::io::BufWriter;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::modal::Modal;
@@ -11,10 +12,12 @@ use iced::alignment::{self, Alignment};
 use iced::theme::{self, Theme};
 use iced::widget::image::Handle;
 use iced::widget::{
-	button, column, container, row, scrollable, text, text_input, vertical_space, Image, Text,
+	button, column, container, progress_bar, row, scrollable, text, text_input, vertical_space,
+	Image, Text,
 };
 use iced::{Application, Command, Element, Font, Length, Settings};
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use tcd::channel::{Channel, ChannelError};
 use tcd::gql::prelude::{ChunkError, PaginateMut, WriteChunk};
 use tcd::video::Video;
@@ -40,12 +43,19 @@ static HTTP: Lazy<reqwest::Client> = Lazy::new(|| {
 		.build()
 		.expect("Failed to build HTTP client")
 });
+static NEXT_ID: AtomicU64 = AtomicU64::new(0);
 
 pub fn main() -> iced::Result {
 	App::run(Settings {
 		default_font: Some(include_bytes!("../fonts/OpenSans.ttf")),
 		..Settings::default()
 	})
+}
+
+struct Task {
+	video: Video,
+	progress: Arc<Mutex<f32>>,
+	id: u64,
 }
 
 #[derive(Default)]
@@ -56,6 +66,7 @@ struct App {
 	channel: Option<Result<Channel, ChannelError>>,
 	videos: Option<Vec<Video>>,
 	download_modal: Option<Video>,
+	tasks: HashMap<u64, Task>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -73,7 +84,8 @@ enum Message {
 	SearchResult(Result<Option<Channel>, ChannelError>),
 	VideoResult(Result<Vec<Video>, ChunkError>),
 	Download(Video),
-	Downloaded,
+	Downloaded(u64),
+	TaskRemoved(u64),
 	ShowModal(Video),
 	CloseModal,
 }
@@ -101,7 +113,11 @@ fn light_icon() -> Text<'static> {
 }
 
 fn download_icon() -> Text<'static> {
-	icon('\u{e258}')
+	icon('\u{e2c4}')
+}
+
+fn delete_icon() -> Text<'static> {
+	icon('\u{e872}')
 }
 
 impl Application for App {
@@ -173,6 +189,14 @@ impl Application for App {
 			}
 			Message::Download(video) => {
 				let filename = self.filename.clone();
+				let task_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
+				let task = Task {
+					video: video.clone(),
+					progress: Arc::new(Mutex::new(0.0)),
+					id: task_id,
+				};
+
+				self.tasks.insert(task.id, task);
 
 				Command::perform(
 					async move {
@@ -188,10 +212,23 @@ impl Application for App {
 							.write_to_stream(&HTTP, &stream, &tcd::gql::prelude::Format::Csv)
 							.await
 					},
-					|_| Message::Downloaded,
+					move |_| Message::Downloaded(task_id),
 				)
 			}
-			Message::Downloaded => Command::none(),
+			Message::Downloaded(task_id) => {
+				self.tasks.get_mut(&task_id).and_then(|task| {
+					task.progress.lock().ok().map(|mut progress| {
+						*progress = 1.0;
+					})
+				});
+
+				Command::none()
+			}
+			Message::TaskRemoved(task_id) => {
+				self.tasks.remove(&task_id);
+
+				Command::none()
+			}
 			Message::ShowModal(video) => {
 				self.download_modal = Some(video);
 
@@ -259,8 +296,34 @@ impl Application for App {
 			(None, _) | (Some(Ok(_)), None) => column![text("There's nothing here.")],
 		};
 
+		let tasks = scrollable(column(
+			self.tasks
+				.iter()
+				.map(|task| {
+					let task = task.1;
+					let progress = task.progress.lock().unwrap();
+					let progress = *progress;
+
+					column![
+						text(&task.video.title),
+						progress_bar(0.0..=1.0, progress),
+						if progress < 1.0 {
+							button(delete_icon())
+						} else {
+							button(delete_icon()).on_press(Message::TaskRemoved(task.id))
+						}
+					]
+					.padding(10)
+					.into()
+				})
+				.collect(),
+		));
+
 		let content = row![
-			row![choose_theme].align_items(Alignment::Start),
+			column![choose_theme, tasks]
+				.align_items(Alignment::Start)
+				.width(Length::FillPortion(20))
+				.max_width(300),
 			column![
 				container(row![search_input.width(Length::Units(300)), search_button])
 					.align_x(iced::alignment::Horizontal::Center)
@@ -272,7 +335,7 @@ impl Application for App {
 					.width(Length::Fill)
 					.height(Length::Fill)
 			]
-			.width(Length::Fill)
+			.width(Length::FillPortion(80))
 		]
 		.padding(10)
 		.width(Length::Fill)
