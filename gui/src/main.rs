@@ -66,7 +66,7 @@ struct App {
 	channel: Option<Result<Channel, ChannelError>>,
 	videos: Option<Vec<Video>>,
 	download_modal: Option<Video>,
-	tasks: HashMap<u64, Task>,
+	tasks: HashMap<u64, Arc<Task>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -170,7 +170,7 @@ impl Application for App {
 									video.get_thumbnail(&HTTP).await.ok();
 									video
 								})
-								.buffer_unordered(10)
+								.buffered(10)
 								.collect::<Vec<_>>()
 								.await;
 
@@ -190,23 +190,34 @@ impl Application for App {
 			Message::Download(video) => {
 				let filename = self.filename.clone();
 				let task_id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
-				let task = Task {
+				let task = Arc::new(Task {
 					video: video.clone_without_thumbnail(),
 					progress: Arc::new(Mutex::new(0.0)),
 					id: task_id,
-				};
+				});
 
-				self.tasks.insert(task.id, task);
+				self.tasks.insert(task.id, task.clone());
 
 				Command::perform(
 					async move {
 						let video = video;
-						let stream = match File::options().write(true).create(true).open(filename) {
-							Ok(file) => Arc::new(Mutex::new(BufWriter::new(Box::new(file)))),
-							Err(e) => {
-								panic!("Failed to open output file: {e}");
-							}
-						};
+						let mut stream =
+							match File::options().write(true).create(true).open(filename) {
+								Ok(file) => file,
+								Err(e) => {
+									panic!("Failed to open output file: {e}");
+								}
+							};
+
+						let writer =
+							progress_streams::ProgressWriter::new(&mut stream, |progress| {
+								println!("Progress: {}/{}", progress, 100);
+								if let Ok(mut m_progress) = task.progress.lock() {
+									*m_progress = progress as f32;
+								}
+							});
+
+						let stream = Arc::new(Mutex::new(BufWriter::new(Box::new(writer))));
 
 						video
 							.write_to_stream(&HTTP, &stream, &tcd::gql::prelude::Format::Csv)
